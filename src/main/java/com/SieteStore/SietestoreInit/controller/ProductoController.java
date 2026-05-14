@@ -33,4 +33,20 @@ public class ProductoController {
             productoRepository.save(p);
         });
     }
+    @PutMapping("/{id}/stock")
+public Producto actualizarStock(
+        @PathVariable Long id,
+        @RequestParam Integer cantidad) {
+
+    if (cantidad <= 0) {
+        throw new RuntimeException("La cantidad debe ser mayor a 0");
+    }
+
+    Producto producto = productoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+    producto.setStockActual(producto.getStockActual() + cantidad);
+
+    return productoRepository.save(producto);
+    }
 }
