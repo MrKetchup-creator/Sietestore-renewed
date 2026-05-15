@@ -3,7 +3,10 @@ package com.SieteStore.SietestoreInit.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
-
+/**
+ *
+ * @author JEISON
+ */
 @Data // Genera getters, setters, toString, etc.
 @Entity
 @Table(name = "productos")
