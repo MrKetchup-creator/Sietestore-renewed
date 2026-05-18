@@ -49,4 +49,26 @@ public Producto actualizarStock(
 
     return productoRepository.save(producto);
     }
+
+@PutMapping("/{id}/descontar-stock")
+public Producto descontarStock( //Boton que descuenta el inventario
+        @PathVariable Long id,
+        @RequestParam Integer cantidad) {
+
+    if (cantidad <= 0) {
+        throw new RuntimeException("La cantidad debe ser mayor a 0");
+    }
+
+    Producto producto = productoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+    if (producto.getStockActual() < cantidad) {
+        throw new RuntimeException("Stock insuficiente");
+    }
+
+    producto.setStockActual(producto.getStockActual() - cantidad);
+
+    return productoRepository.save(producto);
+}
+
 }
