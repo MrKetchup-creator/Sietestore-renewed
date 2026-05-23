@@ -32,4 +32,13 @@ public class Producto {
     
     private Integer stockMinimo;
     private Boolean activo = true;
+    
+    // SOLUCIÓN: Mapeamos la columna de la BD directamente como un entero largo
+    @Column(name = "id_categoria", nullable = false)
+    private Long idCategoria = 1L;
+    
+    // SOLUCIÓN AL NUEVO ERROR: Mapeamos la columna costo con un valor por defecto
+    @Column(name = "costo", nullable = false)
+    private BigDecimal costo = BigDecimal.ZERO;
+    
 }
