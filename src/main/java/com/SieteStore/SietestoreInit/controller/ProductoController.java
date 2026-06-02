@@ -1,17 +1,39 @@
 package com.SieteStore.SietestoreInit.controller;
 
 import com.SieteStore.SietestoreInit.model.Producto;
+import com.SieteStore.SietestoreInit.model.Usuario;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import com.SieteStore.SietestoreInit.repository.ProductoRepository;
+import com.SieteStore.SietestoreInit.repository.UsuarioRepository;
 
 @RestController
 @RequestMapping("/api/productos")
 @CrossOrigin(origins = "*") // Permite conexión con el futuro Frontend
 public class ProductoController {
+    
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
+    // Método auxiliar de control de acceso por software (RA-03)
+    private void validarAccesoAdmin(Integer idUsuarioContexto) {
+        if (idUsuarioContexto == null) {
+            throw new RuntimeException("Acceso Denegado: No se proporcionó identidad de usuario (Header X-User-Id faltante).");
+        }
+
+        Usuario usuario = usuarioRepository.findById(idUsuarioContexto)
+                .orElseThrow(() -> new RuntimeException("Acceso Denegado: El usuario no existe en el sistema."));
+
+        if (!"ADMINISTRADOR".equalsIgnoreCase(usuario.getRol())) {
+            throw new RuntimeException("Acceso Denegado: El rol 'EMPLEADO' no tiene permisos para modificar el catálogo.");
+        }
+    }
+    
+    
+    
+    
     @Autowired
     private ProductoRepository productoRepository;
 
@@ -34,8 +56,13 @@ public class ProductoController {
     }
 
     @DeleteMapping("/{id}")
-    public void eliminar(@PathVariable Integer id) { // CAMBIADO: Long -> Integer
-        // Hacemos un borrado lógico para no perder datos históricos
+    public void eliminar(
+            @PathVariable Integer id,
+            @RequestHeader(value = "X-User-Id", required = false) Integer userIdHeader) {
+
+        // Ejecutar control de rol antes de procesar
+        validarAccesoAdmin(userIdHeader);
+
         productoRepository.findById(id).ifPresent(p -> {
             p.setActivo(false);
             productoRepository.save(p);
