@@ -19,6 +19,14 @@ public class ProductoController {
     public List<Producto> listarTodos() {
         return productoRepository.findByActivoTrue();
     }
+    
+    @GetMapping("/filtrar")
+    public List<Producto> filtrar(
+            @RequestParam(required = false) Integer idCategoria, // CAMBIADO: Long -> Integer (DAWPSS-10)
+            @RequestParam(required = false) String talla) {
+        
+        return productoRepository.filtrarProductos(idCategoria, talla);
+    }
 
     @PostMapping
     public Producto guardar(@RequestBody Producto producto) {
@@ -26,49 +34,49 @@ public class ProductoController {
     }
 
     @DeleteMapping("/{id}")
-    public void eliminar(@PathVariable Long id) {
+    public void eliminar(@PathVariable Integer id) { // CAMBIADO: Long -> Integer
         // Hacemos un borrado lógico para no perder datos históricos
         productoRepository.findById(id).ifPresent(p -> {
             p.setActivo(false);
             productoRepository.save(p);
         });
     }
+
     @PutMapping("/{id}/stock")
-public Producto actualizarStock(
-        @PathVariable Long id,
-        @RequestParam Integer cantidad) {
+    public Producto actualizarStock(
+            @PathVariable Integer id, // CAMBIADO: Long -> Integer
+            @RequestParam Integer cantidad) {
 
-    if (cantidad <= 0) {
-        throw new RuntimeException("La cantidad debe ser mayor a 0");
+        if (cantidad <= 0) {
+            throw new RuntimeException("La cantidad debe ser mayor a 0");
+        }
+
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+        producto.setStockActual(producto.getStockActual() + cantidad);
+
+        return productoRepository.save(producto);
     }
 
-    Producto producto = productoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+    @PutMapping("/{id}/descontar-stock")
+    public Producto descontarStock( // Boton que descuenta el inventario
+            @PathVariable Integer id, // CAMBIADO: Long -> Integer
+            @RequestParam Integer cantidad) {
 
-    producto.setStockActual(producto.getStockActual() + cantidad);
+        if (cantidad <= 0) {
+            throw new RuntimeException("La cantidad debe ser mayor a 0");
+        }
 
-    return productoRepository.save(producto);
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+        if (producto.getStockActual() < cantidad) {
+            throw new RuntimeException("Stock insuficiente");
+        }
+
+        producto.setStockActual(producto.getStockActual() - cantidad);
+
+        return productoRepository.save(producto);
     }
-
-@PutMapping("/{id}/descontar-stock")
-public Producto descontarStock( //Boton que descuenta el inventario
-        @PathVariable Long id,
-        @RequestParam Integer cantidad) {
-
-    if (cantidad <= 0) {
-        throw new RuntimeException("La cantidad debe ser mayor a 0");
-    }
-
-    Producto producto = productoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-
-    if (producto.getStockActual() < cantidad) {
-        throw new RuntimeException("Stock insuficiente");
-    }
-
-    producto.setStockActual(producto.getStockActual() - cantidad);
-
-    return productoRepository.save(producto);
-}
-
 }
