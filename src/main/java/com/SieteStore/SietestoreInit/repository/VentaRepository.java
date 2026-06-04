@@ -11,5 +11,5 @@ import org.springframework.stereotype.Repository;
  * @author JEISON
  */
 @Repository
-public interface VentaRepository extends JpaRepository<Venta, Long> {
+public interface VentaRepository extends JpaRepository<Venta, Integer> { // <-- CAMBIADO A Integer para mantener compatibilidad de los datos
 }
