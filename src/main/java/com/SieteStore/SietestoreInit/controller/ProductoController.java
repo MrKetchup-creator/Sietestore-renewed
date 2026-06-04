@@ -71,4 +71,29 @@ public Producto descontarStock( //Boton que descuenta el inventario
     return productoRepository.save(producto);
 }
 
+// DAWPSS-11 
+
+@PostMapping("/{id}/duplicar")
+public Producto duplicarProducto(@PathVariable Long id) {
+
+    Producto original = productoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+    Producto copia = new Producto();
+
+    String nuevoCodigo = original.getCodigoReferencia()
+            + "-COPY-" + System.currentTimeMillis();
+
+    copia.setCodigoReferencia(nuevoCodigo);
+    copia.setNombre(original.getNombre());
+    copia.setTalla(original.getTalla());
+    copia.setColor(original.getColor());
+    copia.setPrecioVenta(original.getPrecioVenta());
+    copia.setStockActual(original.getStockActual());
+    copia.setStockMinimo(original.getStockMinimo());
+    copia.setActivo(original.getActivo());
+
+    return productoRepository.save(copia);
+}
+
 }
