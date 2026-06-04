@@ -19,10 +19,10 @@ public class Venta {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_venta")
-    private Long idVenta;
+    private Integer idVenta; // Cambiado de Long a Integer
 
     @Column(name = "id_usuario", nullable = false)
-    private Long idUsuario; // Por ahora lo manejamos como Long para simplificar
+    private Integer idUsuario; // Cambiado de Long a Integer
 
     @Column(name = "fecha_hora", insertable = false, updatable = false)
     private LocalDateTime fechaHora;

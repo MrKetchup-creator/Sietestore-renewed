@@ -3,10 +3,12 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package com.SieteStore.SietestoreInit.controller;
-
+/**
+ *
+ * @author BASTO
+ */
 import com.SieteStore.SietestoreInit.model.Cliente;
 import com.SieteStore.SietestoreInit.repository.ClienteRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,27 +27,47 @@ public class ClienteController {
         return clienteRepository.findByActivoTrue();
     }
 
+    @GetMapping("/{id}")
+    public Cliente buscarPorId(@PathVariable Integer id) {
+        return clienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+    }
+
+    @GetMapping("/cedula/{cedulaNit}")
+    public Cliente buscarPorCedula(@PathVariable String cedulaNit) {
+        return clienteRepository.findByCedulaNit(cedulaNit)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+    }
+
     @PostMapping
     public Cliente guardar(@RequestBody Cliente cliente) {
         return clienteRepository.save(cliente);
     }
 
-    @GetMapping("/buscar/{cedula}")
-    public Cliente buscarPorCedula(@PathVariable String cedula) {
+    @PutMapping("/{id}")
+    public Cliente actualizar(
+            @PathVariable Integer id,
+            @RequestBody Cliente clienteActualizado) {
 
-        return clienteRepository.findByCedulaNit(cedula)
-                .orElseThrow(() ->
-                        new RuntimeException("Cliente no encontrado"));
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+
+        cliente.setCedulaNit(clienteActualizado.getCedulaNit());
+        cliente.setNombreCompleto(clienteActualizado.getNombreCompleto());
+        cliente.setTelefono(clienteActualizado.getTelefono());
+        cliente.setCorreoElectronico(clienteActualizado.getCorreoElectronico());
+
+        return clienteRepository.save(cliente);
     }
 
     @DeleteMapping("/{id}")
-    public void eliminar(@PathVariable Long id) {
+    public void eliminar(@PathVariable Integer id) {
 
-        clienteRepository.findById(id).ifPresent(cliente -> {
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
 
-            cliente.setActivo(false);
+        cliente.setActivo(false);
 
-            clienteRepository.save(cliente);
-        });
+        clienteRepository.save(cliente);
     }
 }

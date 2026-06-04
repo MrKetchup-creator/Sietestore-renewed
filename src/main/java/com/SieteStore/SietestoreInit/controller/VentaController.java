@@ -1,8 +1,5 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.SieteStore.SietestoreInit.controller;
+
 import com.SieteStore.SietestoreInit.dto.VentaRequest;
 import com.SieteStore.SietestoreInit.model.DetalleVenta;
 import com.SieteStore.SietestoreInit.model.Venta;
@@ -13,8 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
 /**
- *
  * @author JEISON
  */
 @RestController
@@ -30,14 +27,23 @@ public class VentaController {
         try {
             // 1. Convertimos el DTO a Entidad Venta
             Venta venta = new Venta();
-            venta.setIdUsuario(request.getIdUsuario());
+            
+            // Blindaje técnico: Conversión segura a Integer sin importar el tipo nativo del DTO
+            if (request.getIdUsuario() != null) {
+                venta.setIdUsuario(request.getIdUsuario().intValue());
+            }
             venta.setMetodoPago(request.getMetodoPago());
 
             // 2. Convertimos la lista de detalles del DTO a Entidades DetalleVenta
             List<DetalleVenta> detalles = request.getDetalles().stream().map(detReq -> {
                 DetalleVenta detalle = new DetalleVenta();
                 com.SieteStore.SietestoreInit.model.Producto p = new com.SieteStore.SietestoreInit.model.Producto();
-                p.setIdProducto(detReq.getIdProducto());
+                
+                // Blindaje técnico: Conversión segura del ID del producto a Integer
+                if (detReq.getIdProducto() != null) {
+                    p.setIdProducto(detReq.getIdProducto().intValue());
+                }
+                
                 detalle.setProducto(p);
                 detalle.setCantidad(detReq.getCantidad());
                 return detalle;

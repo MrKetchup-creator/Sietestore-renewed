@@ -14,17 +14,21 @@ public class Cliente {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idCliente;
+    @Column(name = "id_cliente")
+    private Integer idCliente;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "cedula_nit", unique = true, nullable = false)
     private String cedulaNit;
 
-    @Column(nullable = false)
+    @Column(name = "nombre_completo", nullable = false)
     private String nombreCompleto;
 
+    @Column(name = "telefono")
     private String telefono;
 
+    @Column(name = "correo_electronico")
     private String correoElectronico;
 
+    @Column(name = "activo")
     private Boolean activo = true;
 }

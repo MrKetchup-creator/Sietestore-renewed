@@ -13,8 +13,11 @@ import java.math.BigDecimal;
 public class Producto {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idProducto;
-
+    private Integer idProducto; // Cambiado de Long a Integer
+    
+    @Column(name = "id_categoria", nullable = false)
+    private Integer idCategoria = 1; // Cambiado de Long a Integer
+    
     @Column(unique = true, nullable = false)
     private String codigoReferencia;
 
