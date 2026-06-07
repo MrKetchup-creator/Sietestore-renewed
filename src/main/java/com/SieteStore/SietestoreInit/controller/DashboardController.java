@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.SieteStore.SietestoreInit.model.VentaMensualProjection;
+import com.SieteStore.SietestoreInit.repository.VentaRepository;
 
 import java.util.List;
 
@@ -27,4 +29,14 @@ public class DashboardController {
         List<ProductoTopProjection> top5 = detalleVentaRepository.findTopProductos(PageRequest.of(0, 5));
         return ResponseEntity.ok(top5);
     }
+    
+    @Autowired
+    private VentaRepository ventaRepository;
+
+       @GetMapping("/ventas-mensuales")
+    public ResponseEntity<List<VentaMensualProjection>> obtenerVentasMensuales() {
+            List<VentaMensualProjection> ventas = ventaRepository.obtenerVentasMensuales();
+
+    return ResponseEntity.ok(ventas);
+}
 }
