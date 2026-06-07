@@ -66,4 +66,11 @@ public class VentaService {
         nuevaVenta.setTotalVenta(totalVenta);
         return ventaRepository.save(nuevaVenta);
     }
+    
+    /**
+    * Recupera todos los detalles de ventas registrados para el reporte masivo.
+    */
+    public List<DetalleVenta> obtenerReporteDetalladoVentas() {
+       return detalleVentaRepository.findAll();
+    }
 }

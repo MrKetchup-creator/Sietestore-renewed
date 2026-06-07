@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import com.SieteStore.SietestoreInit.service.PdfService;
-
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -100,4 +101,52 @@ public class VentaController {
                 .headers(headers)
                 .body(pdfBytes);
     }
+    
+    @GetMapping("/exportar/csv")
+    public ResponseEntity<byte[]> exportarReporteVentasCSV() {
+        try {
+            // 1. Obtener los datos del sistema
+            List<DetalleVenta> detalles = ventaService.obtenerReporteDetalladoVentas();
+
+            // 2. Construir el CSV puro de forma manual (Eficiencia Máxima)
+            StringBuilder csv = new StringBuilder();
+
+            // TRUCO MAESTRO: Agregar BOM de UTF-8 para garantizar compatibilidad de tildes en Excel
+            csv.append("\uFEFF");
+
+            // Definición de Cabeceras (Separadas por ';')
+            csv.append("ID Venta;Fecha y Hora;Método Pago;Producto;Cantidad;Precio Unitario;Subtotal;Total Venta\n");
+
+            // 3. Iterar y rellenar las filas
+            for (DetalleVenta d : detalles) {
+                String fecha = (d.getVenta().getFechaHora() != null) ? d.getVenta().getFechaHora().toString() : "N/A";
+                String productoNombre = (d.getProducto() != null) ? d.getProducto().getNombre() : "Producto no identificado";
+
+                csv.append(d.getVenta().getIdVenta()).append(";")
+                   .append(fecha).append(";")
+                   .append(d.getVenta().getMetodoPago()).append(";")
+                   .append(productoNombre).append(";")
+                   .append(d.getCantidad()).append(";")
+                   .append(d.getPrecioUnitario()).append(";")
+                   .append(d.getSubtotal() != null ? d.getSubtotal() : "0").append(";")
+                   .append(d.getVenta().getTotalVenta()).append("\n");
+            }
+
+            // 4. Convertir la cadena a arreglo de bytes en formato UTF-8
+            byte[] csvBytes = csv.toString().getBytes(StandardCharsets.UTF_8);
+
+            // 5. Estructurar headers HTTP para forzar la descarga nativa del navegador
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
+            headers.setContentDispositionFormData("attachment", "Reporte_Ventas_SieteStore.csv");
+
+            return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
+
+        } catch (Exception e) {
+            // En caso de error técnico, retornamos un código 500 protegiendo el flujo
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    
 }
