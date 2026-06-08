@@ -1,0 +1,436 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#07142d;
+    min-height:100vh;
+}
+
+/* ================= LOGIN ================= */
+
+#app{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.login-card{
+    width:560px;
+    background:white;
+    border-radius:24px;
+    overflow:hidden;
+    box-shadow:0 8px 25px rgba(0,0,0,.18);
+}
+
+.login-header{
+    background:#020817;
+    text-align:center;
+    padding:50px 20px;
+}
+
+.logo{
+    font-size:50px;
+    font-weight:800;
+    color:white;
+    letter-spacing:2px;
+}
+
+.logo span{
+    color:#64748b;
+    font-weight:300;
+}
+
+.subtitle{
+    color:#94a3b8;
+    margin-top:10px;
+    font-size:18px;
+}
+
+.login-body{
+    padding:40px;
+}
+
+.login-body h2{
+    font-size:28px;
+    margin-bottom:30px;
+    color:#0f172a;
+}
+
+label{
+    display:block;
+    margin-bottom:10px;
+    font-size:16px;
+    color:#334155;
+    font-weight:500;
+}
+
+.role-selector{
+    display:flex;
+    gap:14px;
+    margin-bottom:25px;
+}
+
+.role-btn{
+    flex:1;
+    height:48px;
+    border:1px solid #dbe2ea;
+    border-radius:14px;
+    background:white;
+    cursor:pointer;
+    font-size:16px;
+}
+
+.role-btn.active{
+    background:#09142f;
+    color:white;
+    border:none;
+}
+
+.input-group{
+    margin-bottom:22px;
+}
+
+.input-icon{
+    display:flex;
+    align-items:center;
+    border:1px solid #dbe2ea;
+    border-radius:14px;
+    height:56px;
+    padding:0 18px;
+}
+
+.input-icon span{
+    margin-right:14px;
+    font-size:20px;
+    color:#94a3b8;
+}
+
+.input-icon input{
+    border:none;
+    outline:none;
+    width:100%;
+    font-size:16px;
+}
+
+.login-btn{
+    width:100%;
+    height:56px;
+    border:none;
+    border-radius:14px;
+    background:#09142f;
+    color:white;
+    font-size:20px;
+    font-weight:600;
+    cursor:pointer;
+}
+
+.credentials{
+    margin-top:28px;
+    text-align:center;
+    color:#64748b;
+    line-height:1.7;
+    font-size:15px;
+}
+
+/* ================= POS ================= */
+
+.pos-layout{
+    display:flex;
+    min-height:100vh;
+    background:#f8fafc;
+}
+
+.sidebar{
+    width:280px;
+    background:#07142d;
+    color:white;
+    padding:30px;
+    display:flex;
+    flex-direction:column;
+}
+
+.brand{
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:2px;
+    margin-bottom:50px;
+}
+
+.brand span{
+    color:#64748b;
+    font-weight:300;
+}
+
+.profile small{
+    color:#94a3b8;
+}
+
+.profile h3{
+    margin-top:10px;
+    font-size:22px;
+}
+
+.profile p{
+    color:#cbd5e1;
+    margin-top:6px;
+}
+
+.menu-btn{
+    margin-top:25px;
+    background:#1e293b;
+    color:white;
+    border:none;
+    border-radius:14px;
+    height:55px;
+    font-size:17px;
+    text-align:left;
+    padding-left:20px;
+    cursor:pointer;
+}
+
+.logout-btn{
+    margin-top:auto;
+    background:transparent;
+    color:#94a3b8;
+    border:none;
+    text-align:left;
+    font-size:17px;
+    cursor:pointer;
+}
+
+/* PRODUCTOS */
+
+.products-panel{
+    flex:1;
+    padding:30px;
+    background:white;
+    margin:20px;
+    border-radius:20px;
+}
+
+.categories{
+    margin-bottom:25px;
+}
+
+.categories button{
+    padding:12px 22px;
+    border:none;
+    border-radius:20px;
+    background:#e2e8f0;
+    margin-right:12px;
+    cursor:pointer;
+    color:#334155;
+}
+
+.categories button.active{
+    background:#09142f;
+    color:white;
+}
+
+.products-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:20px;
+}
+
+.product-card{
+    background:white;
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    padding:15px;
+    cursor:pointer;
+}
+
+.product-card:hover{
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+
+.product-img{
+    width:100%;
+    height:130px;
+    object-fit:cover;
+    border-radius:14px;
+}
+
+.product-card h4{
+    margin-top:12px;
+    font-size:17px;
+    color:#0f172a;
+}
+
+.product-card p{
+    margin-top:8px;
+    font-size:18px;
+    font-weight:bold;
+}
+
+/* CARRITO */
+
+.cart-panel{
+    width:420px;
+    background:white;
+    margin:20px 20px 20px 0;
+    border-radius:20px;
+    overflow:hidden;
+    border:1px solid #e2e8f0;
+}
+
+.cart-header{
+    background:#09142f;
+    color:white;
+    padding:22px;
+    font-size:24px;
+    font-weight:bold;
+}
+
+.empty-cart{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:80%;
+    color:#94a3b8;
+    font-size:20px;
+}
+
+.cart-body{
+    height:340px;
+    padding:20px;
+    overflow-y:auto;
+}
+
+.items-badge{
+    float:right;
+    font-size:15px;
+    background:#1e293b;
+    padding:8px 14px;
+    border-radius:20px;
+}
+
+.cart-item{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    background:#f8fafc;
+    padding:15px;
+    border-radius:18px;
+    margin-bottom:15px;
+}
+
+.cart-img{
+    width:62px;
+    height:62px;
+    object-fit:cover;
+    border-radius:14px;
+}
+
+.cart-info{
+    flex:1;
+}
+
+.cart-info h4{
+    font-size:18px;
+    margin-bottom:10px;
+}
+
+.qty-box{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:white;
+    border-radius:14px;
+    width:max-content;
+    padding:6px 12px;
+}
+
+.qty-box button{
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:18px;
+}
+
+.delete-btn{
+    border:none;
+    background:none;
+    cursor:pointer;
+}
+
+.payment-section{
+    border-top:1px solid #e2e8f0;
+    padding:20px;
+}
+
+.payment-options{
+    display:flex;
+    gap:12px;
+    margin:18px 0;
+}
+
+.payment-options button{
+    flex:1;
+    height:58px;
+    border:1px solid #dbe2ea;
+    border-radius:16px;
+    background:white;
+}
+
+.payment-options button.active{
+    background:#09142f;
+    color:white;
+}
+
+.total-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:28px;
+    margin:22px 0;
+}
+
+.pay-btn{
+    width:100%;
+    height:62px;
+    border:none;
+    border-radius:18px;
+    background:#22c55e;
+    color:white;
+    font-size:24px;
+    font-weight:bold;
+}
+
+.empty-cart{
+    text-align:center;
+    margin-top:90px;
+    color:#94a3b8;
+    font-size:24px;
+}
+
+.search-box{
+    width:100%;
+    margin-bottom:22px;
+}
+
+.search-box input{
+    width:100%;
+    height:58px;
+    border:none;
+    background:#f1f5f9;
+    border-radius:18px;
+    padding:0 22px;
+    font-size:18px;
+    outline:none;
+    color:#334155;
+}
+
+.product-card small{
+    display:block;
+    color:#64748b;
+    margin-top:4px;
+    font-size:14px;
+}
+
+
