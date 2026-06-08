@@ -47,7 +47,7 @@ export default class LoginController {
         });
     }
 
-    static login() {
+        static login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
 
@@ -71,11 +71,13 @@ export default class LoginController {
         // Guardar usuario actual
         window.currentUser = user;
 
-        if (user.role === "admin") {
-            document.getElementById("app").innerHTML = AdminDashboardView.render();
-            return;
-        }
+        // CAMBIO CLAVE: Usar la función de navegación unificada
+        window.navegarA('dashboard');
 
-        document.getElementById("app").innerHTML = PosView.render();
+        if (user.role === "admin") {
+            window.navegarA('dashboard');
+        } else {
+            window.navegarA('pos'); // 👈 El vendedor va directo al POS
+        }
     }
 }

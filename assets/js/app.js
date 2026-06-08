@@ -1,213 +1,190 @@
-import LoginController from '../../app/controllers/LoginController.js';
-import PosView from '../../app/views/PosView.js';
-
+import LoginView from '/app/views/LoginView.js';
+import LoginController from '/app/controllers/LoginController.js';
+import PosView from '/app/views/PosView.js';
+import AdminDashboardView from '/app/views/AdminDashboardView.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-    LoginController.init();
+    window.navegarA('login');
 });
 
+// -------- CONFIGURACIÓN GLOBAL DEL POS ---------
 window.selectedPayment = "Efectivo";
+window.currentCategory = "all"; // 🔥 Para recordar el filtro actual
 
-window.filterProducts = function(category){
-
+// -------- FUNCIONES GLOBALES DEL POS ---------
+window.filterProducts = function(category) {
+    window.currentCategory = category;
     let products;
-
-    if(category === "all"){
+    if (category === "all") {
         products = PosView.products;
-    }else{
-        products = PosView.products.filter(
-            p => p.category === category
-        );
+    } else {
+        products = PosView.products.filter(p => p.category === category);
     }
+    document.getElementById("productsGrid").innerHTML = PosView.renderProducts(products);
+    document.querySelectorAll('.categories button').forEach(b => b.classList.remove('active'));
+    const targetBtn = Array.from(document.querySelectorAll('.categories button'))
+        .find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${category}'`));
+    if (targetBtn) targetBtn.classList.add('active');
+};
 
-    document.getElementById("productsGrid").innerHTML =
-        PosView.renderProducts(products);
-}
-
-window.addToCart = function(id){
-
-    const product = PosView.products.find(p=>p.id===id);
-
-    if(product.stock <= 0){
-        alert("Producto agotado");
-        return;
-    }
-
-    const existing = PosView.cart.find(p=>p.id===id);
-
-    if(existing){
-        existing.qty++;
-    }else{
-        PosView.cart.push({...product,qty:1});
-    }
-
+window.addToCart = function(id) {
+    const product = PosView.products.find(p => p.id === id);
+    if (product.stock <= 0) { alert("Producto agotado"); return; }
+    const existing = PosView.cart.find(p => p.id === id);
+    if (existing) existing.qty++;
+    else PosView.cart.push({ ...product, qty: 1 });
     product.stock--;
-
     updateCart();
     refreshProducts();
 };
 
-window.changeQty = function(id,change){
-
-    const item = PosView.cart.find(p=>p.id===id);
-    const product = PosView.products.find(p=>p.id===id);
-
-    if(change > 0){
-
-        if(product.stock <= 0){
-            alert("No hay más stock disponible");
-            return;
-        }
-
+window.changeQty = function(id, change) {
+    const item = PosView.cart.find(p => p.id === id);
+    const product = PosView.products.find(p => p.id === id);
+    if (change > 0) {
+        if (product.stock <= 0) { alert("No hay más stock disponible"); return; }
         item.qty++;
         product.stock--;
-
     } else {
-
         item.qty--;
         product.stock++;
-
-        if(item.qty <= 0){
-            PosView.cart = PosView.cart.filter(p=>p.id!==id);
-        }
+        if (item.qty <= 0) PosView.cart = PosView.cart.filter(p => p.id !== id);
     }
-
     updateCart();
     refreshProducts();
 };
 
-window.removeFromCart = function(id){
-    PosView.cart = PosView.cart.filter(p=>p.id!==id);
+window.removeFromCart = function(id) {
+    PosView.cart = PosView.cart.filter(p => p.id !== id);
     updateCart();
 };
 
-window.selectPayment = function(method){
+window.selectPayment = function(method) {
     window.selectedPayment = method;
     updateCart();
 };
 
-window.processPayment = function(){
-
-    if(PosView.cart.length === 0){
-        alert("El carrito está vacío");
-        return;
-    }
-
+window.processPayment = function() {
+    if (PosView.cart.length === 0) { alert("El carrito está vacío"); return; }
     const sale = {
-
         id: "s" + (PosView.sales.length + 1),
-
-        date: new Date().toLocaleString(),
-
+        // 🔥 CORRECCIÓN CRUCIAL: Guardamos la fecha sin hora para que el gráfico funcione
+        date: new Date().toLocaleDateString(), 
         payment: window.selectedPayment,
-
-        total: PosView.cart.reduce(
-            (sum,item) => sum + (item.price * item.qty),
-            0
-        ),
-
+        total: PosView.cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
         items: [...PosView.cart]
     };
-
     PosView.sales.push(sale);
-
-    alert(
-        "Pedido realizado con éxito\nMétodo de pago: "
-        + window.selectedPayment
-    );
-
+    alert("Pedido realizado con éxito\nMétodo de pago: " + window.selectedPayment);
     PosView.cart = [];
-   
-
     updateCart();
     refreshProducts();
 };
 
-function updateCart(){
-    document.getElementById("cartPanel").innerHTML =
-        PosView.renderCart();
-}
-
-window.searchProducts = function(value){
-
+window.searchProducts = function(value) {
     const search = value.toLowerCase();
-
-    const filtered = PosView.products.filter(product =>
-        product.name.toLowerCase().includes(search)
-    );
-
-    document.getElementById("productsGrid").innerHTML =
-        PosView.renderProducts(filtered);
+    const filtered = PosView.products.filter(product => product.name.toLowerCase().includes(search));
+    document.getElementById("productsGrid").innerHTML = PosView.renderProducts(filtered);
 };
 
-function refreshProducts(){
-    document.getElementById("productsGrid").innerHTML =
-        PosView.renderProducts(PosView.products);
+function updateCart() { document.getElementById("cartPanel").innerHTML = PosView.renderCart(); }
+
+function refreshProducts() {
+    const category = window.currentCategory;
+    let products;
+    if (category === "all") {
+        products = PosView.products;
+    } else {
+        products = PosView.products.filter(p => p.category === category);
+    }
+    document.getElementById("productsGrid").innerHTML = PosView.renderProducts(products);
 }
 
-import AdminDashboardView from '../../app/views/AdminDashboardView.js';
+// -------- NAVEGACIÓN UNIFICADA Y ABSOLUTAMENTE ESTABLE ---------
+window.navegarA = function(vista) {
+    const app = document.getElementById('app');
 
-window.goDashboard = function(){
-    document.getElementById("app").innerHTML =
-        AdminDashboardView.render();
+    if (vista === 'login') {
+        app.innerHTML = LoginView.render();
+        LoginController.bindEvents();
+        return;
+    }
+
+    const isAdmin = window.currentUser?.role === "admin";
+    let sidebarButtons = '';
+
+    if (isAdmin) {
+        sidebarButtons += `
+            <button class="${vista === 'dashboard' ? 'active' : ''}" onclick="window.navegarA('dashboard')">Dashboard</button>
+            <button class="${vista === 'inventory' ? 'active' : ''}" onclick="window.navegarA('inventory')">Inventario</button>
+            <button class="${vista === 'reports' ? 'active' : ''}" onclick="window.navegarA('reports')">Reportes</button>
+        `;
+    }
+    sidebarButtons += `
+        <button class="${vista === 'pos' ? 'active' : ''}" onclick="window.navegarA('pos')">Punto de Venta</button>
+    `;
+
+    let contentHTML = '';
+    if (vista === 'dashboard') {
+        contentHTML = AdminDashboardView.renderDashboardContent();
+    } else if (vista === 'inventory') {
+        AdminDashboardView.removeNewProductModal();
+        contentHTML = AdminDashboardView.renderInventoryContent();
+    } else if (vista === 'reports') {
+        contentHTML = AdminDashboardView.renderReportsContent();
+    } else if (vista === 'pos') {
+        contentHTML = PosView.renderContent();
+    }
+
+    app.innerHTML = `
+        <div class="dashboard-layout">
+            <aside class="admin-sidebar">
+                <div class="brand">SIETE<span>STORE</span></div>
+                <div class="profile">
+                    <p>PERFIL</p>
+                    <h3>${window.currentUser?.name || "Administrador"}</h3>
+                    <span>${window.currentUser?.roleLabel || "Administrador"}</span>
+                </div>
+                <nav class="menu">
+                    ${sidebarButtons}
+                </nav>
+                <button class="logout-btn" onclick="window.navegarA('login')">Cerrar Sesión</button>
+            </aside>
+            <main class="admin-content" id="dynamic-content">
+                ${contentHTML}
+            </main>
+        </div>
+    `;
+
+    if (vista === 'dashboard') {
+        // 🔥 Pequeño delay para asegurar que el canvas existe antes de dibujar
+        setTimeout(() => AdminDashboardView.drawSalesChart(), 150);
+    } else if (vista === 'inventory') {
+        AdminDashboardView.bindInventoryEvents();
+    } else if (vista === 'reports') {
+        // 🔥 Aseguramos que la pestaña inicial se muestre correctamente sin "fade out"
+        setTimeout(() => window.showReportTab('top'), 50);
+    }
 };
 
-window.goInventory = function(){
-    document.getElementById("app").innerHTML =
-        AdminDashboardView.renderInventory();
-
-    AdminDashboardView.bindInventoryEvents();
-};
-
-window.goReports = function(){
-    document.getElementById("app").innerHTML =
-        AdminDashboardView.renderReports();
-
-    AdminDashboardView.bindReportsEvents();
-};
-window.showReportTab = function(tab){
-
+window.showReportTab = function(tab) {
+    // 1. Ocultar todas las vistas
     document.getElementById("topProductsView").style.display = "none";
     document.getElementById("stockView").style.display = "none";
     document.getElementById("historyView").style.display = "none";
 
-    document.querySelectorAll(".report-tab")
-        .forEach(btn => btn.classList.remove("active"));
+    // 2. Quitar la clase 'active' de todos los botones
+    document.querySelectorAll(".report-tab").forEach(b => b.classList.remove("active"));
 
-    if(tab === "top"){
+    // 3. Mostrar la vista y activar el botón correspondiente usando IDs
+    if (tab === "top") {
         document.getElementById("topProductsView").style.display = "block";
-        document.querySelector('[onclick="showReportTab(\'top\')"]')
-            .classList.add("active");
-    }
-
-    if(tab === "stock"){
+        document.getElementById("tab-top").classList.add("active");
+    } else if (tab === "stock") {
         document.getElementById("stockView").style.display = "block";
-        document.querySelector('[onclick="showReportTab(\'stock\')"]')
-            .classList.add("active");
-    }
-
-    if(tab === "history"){
+        document.getElementById("tab-stock").classList.add("active");
+    } else if (tab === "history") {
         document.getElementById("historyView").style.display = "block";
-        document.querySelector('[onclick="showReportTab(\'history\')"]')
-            .classList.add("active");
+        document.getElementById("tab-history").classList.add("active");
     }
-}
-
-window.filterTopProducts = function(){
-
-    const category =
-        document.getElementById("categoryFilter").value;
-
-    document.getElementById("app").innerHTML =
-        AdminDashboardView.renderReports(category);
-
-    AdminDashboardView.bindReportsEvents();
-};
-
-const ventasMes = PosView.sales.reduce(
-    (sum, sale) => sum + sale.total,
-    0
-);
-window.goPos = function() {
-    document.getElementById("app").innerHTML = PosView.render();
 };
