@@ -22,7 +22,6 @@ import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 public class DashboardController {
 
     @Autowired

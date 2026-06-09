@@ -32,8 +32,7 @@ export default class LoginController {
         const password = document.getElementById("password").value.trim();
 
         try {
-            // 🔥 Asegúrate de que API_BASE_URL esté importado o definido globalmente
-            const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            const response = await fetch('http://localhost:8080/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -47,14 +46,17 @@ export default class LoginController {
 
             const user = await response.json();
 
+            // Validar que el rol seleccionado coincida con el rol del usuario
             if (user.role.toLowerCase() !== this.selectedRole) {
                 alert(`Este usuario es ${user.roleLabel}, no puede acceder como ${this.selectedRole === 'admin' ? 'Administrador' : 'Empleado'}`);
                 return;
             }
 
+            // Guardar usuario actual
             window.currentUser = user;
-            await window.loadData();
+            await window.loadData(); // Cargar datos necesarios para la aplicación
 
+            // Redirigir según rol
             if (user.role.toLowerCase() === 'admin') {
                 window.navegarA('dashboard');
             } else {
@@ -62,8 +64,10 @@ export default class LoginController {
             }
 
         } catch (error) {
-            console.error('Error en el login:', error);
-            alert("Error de conexión con el servidor. Asegúrate de que el backend esté corriendo en localhost:8080.");
+            if (user.role.toLowerCase() !== this.selectedRole) {
+                alert(`El usuario ${user.name} tiene el rol "${user.roleLabel}", pero seleccionaste "${this.selectedRole === 'admin' ? 'Administrador' : 'Empleado'}".\nPor favor, selecciona el perfil correcto.`);
+                return;
+            }
         }
     }
 }

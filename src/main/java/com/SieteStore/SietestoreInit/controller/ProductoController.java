@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/productos")
-@CrossOrigin(origins = "*") // Permite conexión con el futuro Frontend
 public class ProductoController {
     
     @Autowired

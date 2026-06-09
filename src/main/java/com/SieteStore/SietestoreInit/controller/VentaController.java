@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/ventas")
-@CrossOrigin(origins = "*")
 public class VentaController {
 
     @Autowired
