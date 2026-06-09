@@ -20,4 +20,13 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
         @Param("idCategoria") Integer idCategoria, // Cambiado de Long a Integer
         @Param("talla") String talla
     );
+    
+    @Query("SELECT SUM(p.stockActual) FROM Producto p WHERE p.activo = true")
+    Integer obtenerStockTotal();
+
+    @Query("SELECT COUNT(p) FROM Producto p WHERE p.activo = true AND p.stockActual <= p.stockMinimo")
+    Integer obtenerStockCritico();
+    
+    @Query("SELECT p FROM Producto p WHERE p.activo = true AND p.stockActual <= :threshold")
+    List<Producto> findByActivoTrueAndStockActualLessThanEqual(@Param("threshold") Integer threshold);
 }

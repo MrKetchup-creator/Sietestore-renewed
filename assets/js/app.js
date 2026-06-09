@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // -------- CONFIGURACIÓN GLOBAL DEL POS ---------
 window.selectedPayment = "Efectivo";
-window.currentCategory = "all"; // 🔥 Para recordar el filtro actual
+window.currentCategory = "all";
 
 // -------- FUNCIONES GLOBALES DEL POS ---------
 window.filterProducts = function(category) {
@@ -64,21 +64,74 @@ window.selectPayment = function(method) {
     updateCart();
 };
 
-window.processPayment = function() {
-    if (PosView.cart.length === 0) { alert("El carrito está vacío"); return; }
-    const sale = {
-        id: "s" + (PosView.sales.length + 1),
-        // 🔥 CORRECCIÓN CRUCIAL: Guardamos la fecha sin hora para que el gráfico funcione
-        date: new Date().toLocaleDateString(), 
-        payment: window.selectedPayment,
-        total: PosView.cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
-        items: [...PosView.cart]
+// -------- PROCESAR PAGO ---------
+window.processPayment = async function() {
+    if (PosView.cart.length === 0) {
+        alert("El carrito está vacío");
+        return;
+    }
+
+    const payload = {
+        idUsuario: window.currentUser.id,
+        metodoPago: window.selectedPayment,
+        detalles: PosView.cart.map(item => ({
+            idProducto: item.id,
+            cantidad: item.qty
+        }))
     };
-    PosView.sales.push(sale);
-    alert("Pedido realizado con éxito\nMétodo de pago: " + window.selectedPayment);
-    PosView.cart = [];
-    updateCart();
-    refreshProducts();
+
+    try {
+        const response = await fetch('http://localhost:8080/api/ventas/procesar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorMsg = await response.text();
+            alert("Error al procesar la venta: " + errorMsg);
+            return;
+        }
+
+        const ventaCreada = await response.json();
+        alert(`✅ Venta #${ventaCreada.idVenta} procesada con éxito.\nMétodo de pago: ${window.selectedPayment}`);
+
+        PosView.cart = [];
+        updateCart();
+        refreshProducts();
+
+        const isDashboardVisible = document.querySelector('.stat-card') !== null;
+        if (isDashboardVisible && window.currentUser?.role === "admin") {
+            try {
+                const stats = await AdminDashboardView.loadDashboardStats();
+                if (stats) {
+                    document.querySelector('.stat-card:nth-child(1) h2').textContent = `$${stats.ventasMes.toFixed(2)}`;
+                    document.querySelector('.stat-card:nth-child(2) h2').textContent = `$${stats.ventasHoy.toFixed(2)}`;
+                    document.querySelector('.stat-card:nth-child(3) h2').textContent = stats.stockTotal;
+                    document.querySelector('.stat-card:nth-child(4) h2').textContent = stats.stockCritico;
+                    
+                    if (stats.ventasPorDia) {
+                        const labels = [];
+                        const data = [];
+                        stats.ventasPorDia.forEach(dia => {
+                            const fecha = new Date(dia[0]);
+                            labels.push(`${fecha.getDate()}/${fecha.getMonth() + 1}`);
+                            data.push(dia[1]);
+                        });
+                        AdminDashboardView.drawSalesChart(labels, data);
+                    }
+                    AdminDashboardView.loadAlertasStock();
+                    AdminDashboardView.loadUltimasVentas();
+                }
+            } catch (dashboardError) {
+                console.warn("No se pudo actualizar el dashboard (probablemente no está visible):", dashboardError);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error al procesar venta:', error);
+        alert("Error al procesar la venta. Revisa la consola para más detalles.");
+    }
 };
 
 window.searchProducts = function(value) {
@@ -100,8 +153,34 @@ function refreshProducts() {
     document.getElementById("productsGrid").innerHTML = PosView.renderProducts(products);
 }
 
-// -------- NAVEGACIÓN UNIFICADA Y ABSOLUTAMENTE ESTABLE ---------
-window.navegarA = function(vista) {
+// -------- CARGAR DATOS DESDE EL BACKEND ---------
+window.loadData = async function() {
+    try {
+        const productsResponse = await fetch('http://localhost:8080/api/productos');
+        if (!productsResponse.ok) throw new Error('No se pudo cargar productos');
+        const productsData = await productsResponse.json();
+
+        PosView.products = productsData.map(p => ({
+            id: p.idProducto,
+            name: p.nombre,
+            price: p.precioVenta,
+            category: p.idCategoria === 1 ? 'dama' : 
+                      p.idCategoria === 2 ? 'caballero' : 
+                      p.idCategoria === 3 ? 'gorra' : 'dama',
+            talla: p.talla,
+            color: p.color,
+            stock: p.stockActual,
+            image: 'assets/images/placeholder.png'
+        }));
+
+        console.log('Productos cargados:', PosView.products.length);
+    } catch (error) {
+        console.error('Error cargando datos:', error);
+    }
+};
+
+// -------- NAVEGACIÓN ENTRE VISTAS ---------
+window.navegarA = async function(vista) {
     const app = document.getElementById('app');
 
     if (vista === 'login') {
@@ -126,11 +205,13 @@ window.navegarA = function(vista) {
 
     let contentHTML = '';
     if (vista === 'dashboard') {
-        contentHTML = AdminDashboardView.renderDashboardContent();
+        contentHTML = await AdminDashboardView.renderDashboardContent();
     } else if (vista === 'inventory') {
         AdminDashboardView.removeNewProductModal();
         contentHTML = AdminDashboardView.renderInventoryContent();
+        setTimeout(() => AdminDashboardView.bindInventoryEvents(), 150);
     } else if (vista === 'reports') {
+        // 🔥 1. Asignar el contenido HTML de los reportes
         contentHTML = AdminDashboardView.renderReportsContent();
     } else if (vista === 'pos') {
         contentHTML = PosView.renderContent();
@@ -157,34 +238,113 @@ window.navegarA = function(vista) {
     `;
 
     if (vista === 'dashboard') {
-        // 🔥 Pequeño delay para asegurar que el canvas existe antes de dibujar
-        setTimeout(() => AdminDashboardView.drawSalesChart(), 150);
-    } else if (vista === 'inventory') {
-        AdminDashboardView.bindInventoryEvents();
-    } else if (vista === 'reports') {
-        // 🔥 Aseguramos que la pestaña inicial se muestre correctamente sin "fade out"
-        setTimeout(() => window.showReportTab('top'), 50);
+        setTimeout(async () => {
+            const stats = await AdminDashboardView.loadDashboardStats();
+            if (stats && stats.ventasPorDia) {
+                const labels = [];
+                const data = [];
+                stats.ventasPorDia.forEach(dia => {
+                    const fecha = new Date(dia[0]);
+                    labels.push(`${fecha.getDate()}/${fecha.getMonth() + 1}`);
+                    data.push(dia[1]);
+                });
+                AdminDashboardView.drawSalesChart(labels, data);
+            }
+            AdminDashboardView.loadAlertasStock();
+            AdminDashboardView.loadUltimasVentas();
+        }, 150);
+    }
+
+    // 🔥 2. Si es la vista de reportes, simular un clic en la pestaña "Más Vendidos" después de que el DOM esté listo
+    if (vista === 'reports') {
+        // No hay que hacer clic. Solo llamar a la función. Su propio mecanismo interno
+        // (reportTabRetryCount) se encargará de reintentar hasta que el DOM esté listo.
+        setTimeout(async () => {
+            await window.showReportTab('top');
+        }, 200);
     }
 };
 
-window.showReportTab = function(tab) {
+
+let reportTabRetryCount = 0;
+const MAX_RETRIES = 10;
+
+window.showReportTab = async function(tab) {
+    const topProductsView = document.getElementById('topProductsView');
+    const stockView = document.getElementById('stockView');
+    const historyView = document.getElementById('historyView');
+    const tabs = document.querySelectorAll('.report-tab');
+
+    // Si algún elemento no existe, esperar, pero con límite
+    if (!topProductsView || !stockView || !historyView) {
+        reportTabRetryCount++;
+        if (reportTabRetryCount >= MAX_RETRIES) {
+            console.error('Error crítico: No se pudieron cargar los elementos de reportes después de', MAX_RETRIES, 'intentos.');
+            return; // Salir para evitar el bucle infinito
+        }
+        console.warn(`Elementos de reportes aún no cargados. Reintentando (${reportTabRetryCount}/${MAX_RETRIES})...`);
+        setTimeout(() => window.showReportTab(tab), 100);
+        return;
+    }
+
+    // Reiniciar el contador al cargar exitosamente
+    reportTabRetryCount = 0;
+
     // 1. Ocultar todas las vistas
-    document.getElementById("topProductsView").style.display = "none";
-    document.getElementById("stockView").style.display = "none";
-    document.getElementById("historyView").style.display = "none";
+    topProductsView.style.display = "none";
+    stockView.style.display = "none";
+    historyView.style.display = "none";
 
     // 2. Quitar la clase 'active' de todos los botones
-    document.querySelectorAll(".report-tab").forEach(b => b.classList.remove("active"));
+    tabs.forEach(b => b.classList.remove("active"));
 
-    // 3. Mostrar la vista y activar el botón correspondiente usando IDs
+    // 3. Mostrar la vista y activar el botón
     if (tab === "top") {
-        document.getElementById("topProductsView").style.display = "block";
+        topProductsView.style.display = "block";
         document.getElementById("tab-top").classList.add("active");
+        await AdminDashboardView.loadTopProducts();
     } else if (tab === "stock") {
-        document.getElementById("stockView").style.display = "block";
+        stockView.style.display = "block";
         document.getElementById("tab-stock").classList.add("active");
+        await AdminDashboardView.loadStockBajo();
     } else if (tab === "history") {
-        document.getElementById("historyView").style.display = "block";
+        historyView.style.display = "block";
         document.getElementById("tab-history").classList.add("active");
+        await AdminDashboardView.loadHistorialVentas();
     }
 };
+
+
+window.exportReport = async function() {
+    const activeTab = document.querySelector('.report-tab.active');
+    let type = 'top';
+    if (activeTab) {
+        const tabId = activeTab.id;
+        if (tabId === 'tab-top') type = 'top';
+        else if (tabId === 'tab-stock') {
+            alert("La exportación de Stock Bajo no está disponible en esta versión.");
+            return;
+        }
+        else if (tabId === 'tab-history') type = 'history';
+    }
+
+    let url = `http://localhost:8080/api/reports/export?type=${type}`;
+    
+    if (type === 'top') {
+        const categorySelect = document.querySelector('#topProductsView select:nth-of-type(2)');
+        if (categorySelect) {
+            const map = { 'Todas': null, 'Dama': 1, 'Caballero': 2, 'Gorra': 3 };
+            const categoryId = map[categorySelect.value] || null;
+            if (categoryId !== null) url += `&categoryId=${categoryId}`;
+        }
+    }
+
+    window.location.href = url;
+};
+
+
+window.downloadReceipt = function(id) {
+    window.open('http://localhost:8080/api/ventas/' + id + '/recibo', '_blank');
+};
+
+//futuras funciones para el dashboard y reportes se agregarán aquí

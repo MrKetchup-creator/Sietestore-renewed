@@ -19,7 +19,7 @@ public class PdfService {
 
     public byte[] generarReciboVenta(Venta venta, List<DetalleVenta> detalles) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        Document document = new Document(PageSize.A6, 20, 20, 20, 20); // Tamaño compacto tipo recibo de tienda
+        Document document = new Document(PageSize.A6, 20, 20, 20, 20);
 
         try {
             PdfWriter.getInstance(document, out);
@@ -52,36 +52,25 @@ public class PdfService {
             document.add(linea);
 
             // --- Tabla de Productos ---
-            PdfPTable tabla = new PdfPTable(4); // 4 columnas
+            PdfPTable tabla = new PdfPTable(4);
             tabla.setWidthPercentage(100);
-            tabla.setWidths(new float[]{4f, 1.5f, 2f, 2.5f}); // Proporciones de tamaño de columnas
+            tabla.setWidths(new float[]{4f, 1.5f, 2f, 2.5f});
             tabla.setSpacingBefore(5);
 
-            // Cabeceras de Tabla
-            String[] cabeceras = {"Prod", "Cant", "P.Unit", "Subtotal"};
-            for (String cabecera : cabeceras) {
-                PdfPCell cell = new PdfPCell(new Paragraph(cabecera, fontNegrita));
-                cell.setBackgroundColor(Color.LIGHT_GRAY);
-                cell.setBorder(Rectangle.NO_BORDER);
-                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                tabla.addCell(cell);
-            }
-
+            // 🔥 DECLARACIÓN DE LA VARIABLE totalAcumulado AQUÍ
             double totalAcumulado = 0.0;
 
             // Renderizar los detalles dinámicamente
             for (DetalleVenta det : detalles) {
-                // Nombre del producto (Manejo defensivo de nulos)
                 String prodNombre = (det.getProducto() != null && det.getProducto().getNombre() != null) 
                         ? det.getProducto().getNombre() : "Producto #" + det.getProducto().getIdProducto();
-                
-                // Simulación de precio base (ajustar si tu modelo tiene precio unitario directo)
-                double precioUnitario = 25000.0; 
+
+                double precioUnitario = det.getPrecioUnitario().doubleValue();
                 double subtotal = det.getCantidad() * precioUnitario;
                 totalAcumulado += subtotal;
 
                 tabla.addCell(new PdfPCell(new Paragraph(prodNombre, fontTexto))).setBorder(Rectangle.NO_BORDER);
-                
+
                 PdfPCell cCant = new PdfPCell(new Paragraph(String.valueOf(det.getCantidad()), fontTexto));
                 cCant.setHorizontalAlignment(Element.ALIGN_CENTER);
                 cCant.setBorder(Rectangle.NO_BORDER);

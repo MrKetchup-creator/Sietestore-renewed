@@ -1,27 +1,8 @@
 import LoginView from '../views/LoginView.js';
-import PosView from '../views/PosView.js';
-import AdminDashboardView from '../views/AdminDashboardView.js';
 
 export default class LoginController {
 
     static selectedRole = "admin";
-
-    static users = [
-        {
-            email: "admin@sietestore.com",
-            password: "123",
-            role: "admin",
-            name: "Deinnys (Admin)",
-            roleLabel: "Administrador"
-        },
-        {
-            email: "vendedor@sietestore.com",
-            password: "123",
-            role: "empleado",
-            name: "Juan (Vendedor)",
-            roleLabel: "Empleado"
-        }
-    ];
 
     static init() {
         document.getElementById("app").innerHTML = LoginView.render();
@@ -40,44 +21,53 @@ export default class LoginController {
         });
 
         const loginForm = document.getElementById("loginForm");
-
         loginForm.addEventListener("submit", (e) => {
             e.preventDefault();
             this.login();
         });
     }
 
-        static login() {
+    static async login() {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();
 
-        const user = this.users.find(u => u.email === email);
+        try {
+            const response = await fetch('http://localhost:8080/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-        if (!user) {
-            alert("Correo no registrado");
-            return;
-        }
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                alert(errorMsg);
+                return;
+            }
 
-        if (user.password !== password) {
-            alert("Contraseña incorrecta");
-            return;
-        }
+            const user = await response.json();
 
-        if (user.role !== this.selectedRole) {
-            alert("Ese usuario no pertenece a ese rol");
-            return;
-        }
+            // Validar que el rol seleccionado coincida con el rol del usuario
+            if (user.role.toLowerCase() !== this.selectedRole) {
+                alert(`Este usuario es ${user.roleLabel}, no puede acceder como ${this.selectedRole === 'admin' ? 'Administrador' : 'Empleado'}`);
+                return;
+            }
 
-        // Guardar usuario actual
-        window.currentUser = user;
+            // Guardar usuario actual
+            window.currentUser = user;
+            await window.loadData(); // Cargar datos necesarios para la aplicación
 
-        // CAMBIO CLAVE: Usar la función de navegación unificada
-        window.navegarA('dashboard');
+            // Redirigir según rol
+            if (user.role.toLowerCase() === 'admin') {
+                window.navegarA('dashboard');
+            } else {
+                window.navegarA('pos');
+            }
 
-        if (user.role === "admin") {
-            window.navegarA('dashboard');
-        } else {
-            window.navegarA('pos'); // 👈 El vendedor va directo al POS
+        } catch (error) {
+            if (user.role.toLowerCase() !== this.selectedRole) {
+                alert(`El usuario ${user.name} tiene el rol "${user.roleLabel}", pero seleccionaste "${this.selectedRole === 'admin' ? 'Administrador' : 'Empleado'}".\nPor favor, selecciona el perfil correcto.`);
+                return;
+            }
         }
     }
 }

@@ -44,7 +44,7 @@ export default class PosView {
     static renderProducts(products) {
         return products.map(p => `
             <div class="product-card" onclick="window.addToCart(${p.id})">
-                <img src="${p.image}" class="product-img">
+                <div class="product-img-placeholder"></div>
                 <h4>${p.name}</h4>
                 <small>${p.talla} • ${p.color}</small>
                 <small>Stock: ${p.stock}</small>
@@ -65,7 +65,7 @@ export default class PosView {
                     ? `<div class="empty-cart">🛍️<br>El carrito está vacío</div>`
                     : this.cart.map(item => `
                         <div class="cart-item">
-                            <img src="${item.image}" class="cart-img">
+                            <div class="product-img-placeholder" style="width:62px; height:62px;"></div>
                             <div class="cart-info">
                                 <h4>${item.name}</h4>
                                 <div class="qty-box">

@@ -1,8 +1,5 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.SieteStore.SietestoreInit.service;
+
 import com.SieteStore.SietestoreInit.model.DetalleVenta;
 import com.SieteStore.SietestoreInit.model.Producto;
 import com.SieteStore.SietestoreInit.model.Venta;
@@ -15,10 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-/**
- *
- * @author JEISON
- */
+
 @Service
 public class VentaService {
 
@@ -35,42 +29,46 @@ public class VentaService {
     public Venta procesarVenta(Venta venta, List<DetalleVenta> detalles) {
         BigDecimal totalVenta = BigDecimal.ZERO;
 
-        // 1. Guardar primero la cabecera de la venta para obtener el ID
-        Venta nuevaVenta = ventaRepository.save(venta);
-
+        // 🔥 1. Calcular el total primero (sin guardar la venta aún)
         for (DetalleVenta detalle : detalles) {
-            // 2. Validar que el producto existe
             Producto producto = productoRepository.findById(detalle.getProducto().getIdProducto())
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + detalle.getProducto().getIdProducto()));
 
-            // 3. Validar Stock (Lógica de negocio extra al Trigger para avisar al usuario)
+            // Validar stock (opcional, el trigger también lo hará)
             if (producto.getStockActual() < detalle.getCantidad()) {
                 throw new RuntimeException("Stock insuficiente para: " + producto.getNombre());
             }
 
-            // 4. Configurar el detalle
-            detalle.setVenta(nuevaVenta);
-            detalle.setProducto(producto);
-            detalle.setPrecioUnitario(producto.getPrecioVenta());
-            
-            // El subtotal se calcula en la BD por tu columna GENERATED, 
-            // pero lo sumamos aquí para el total de la cabecera
             BigDecimal subtotal = producto.getPrecioVenta().multiply(new BigDecimal(detalle.getCantidad()));
             totalVenta = totalVenta.add(subtotal);
+        }
 
-            // 5. Guardar detalle (Esto disparará tu Trigger en MySQL para descontar stock)
+        // 🔥 2. Asignar el total a la venta antes de guardarla
+        venta.setTotalVenta(totalVenta);
+
+        // 3. Guardar la cabecera de la venta (ya con total calculado)
+        Venta nuevaVenta = ventaRepository.save(venta);
+
+        // 4. Guardar los detalles (asociados a la venta recién creada)
+        for (DetalleVenta detalle : detalles) {
+            Producto producto = productoRepository.findById(detalle.getProducto().getIdProducto())
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + detalle.getProducto().getIdProducto()));
+
+            detalle.setVenta(nuevaVenta);
+            detalle.setProducto(producto);
+            BigDecimal precioUnitario = producto.getPrecioVenta();
+            if (precioUnitario == null || precioUnitario.compareTo(BigDecimal.ZERO) == 0) {
+                throw new RuntimeException("El producto " + producto.getNombre() + " no tiene precio de venta válido.");
+            }
+            detalle.setPrecioUnitario(precioUnitario);
             detalleVentaRepository.save(detalle);
         }
 
-        // 6. Actualizar el total de la venta
-        nuevaVenta.setTotalVenta(totalVenta);
-        return ventaRepository.save(nuevaVenta);
+        // 5. Retornar la venta guardada (ya tiene el total correcto)
+        return nuevaVenta;
     }
-    
-    /**
-    * Recupera todos los detalles de ventas registrados para el reporte masivo.
-    */
+
     public List<DetalleVenta> obtenerReporteDetalladoVentas() {
-       return detalleVentaRepository.findAll();
+        return detalleVentaRepository.findAll();
     }
 }

@@ -3,6 +3,8 @@ package com.SieteStore.SietestoreInit.controller;
 import com.SieteStore.SietestoreInit.dto.VentaRequest;
 import com.SieteStore.SietestoreInit.model.DetalleVenta;
 import com.SieteStore.SietestoreInit.model.Venta;
+import com.SieteStore.SietestoreInit.repository.DetalleVentaRepository;
+import com.SieteStore.SietestoreInit.repository.VentaRepository;
 import com.SieteStore.SietestoreInit.service.VentaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -11,9 +13,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import com.SieteStore.SietestoreInit.service.PdfService;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +33,12 @@ public class VentaController {
     
     @Autowired
     private PdfService pdfService;
+    
+    @Autowired
+    private VentaRepository ventaRepository;
+    
+    @Autowired
+    private DetalleVentaRepository detalleVentaRepository;
 
     @PostMapping("/procesar")
     public ResponseEntity<?> procesarVenta(@RequestBody VentaRequest request) {
@@ -71,28 +81,21 @@ public class VentaController {
     // Asumiendo que podemos usar el service para buscar o inyectar temporalmente el repositorio para el PDF:
     @GetMapping("/{id}/recibo")
     public ResponseEntity<byte[]> descargarRecibo(@PathVariable Integer id) {
-        
-        // 1. Simulación/Búsqueda de la entidad de la venta desde el sistema
-        // Para asegurar compilación rápida, armamos el cascarón de datos que alimentará al generador:
-        Venta ventaMock = new Venta();
-        ventaMock.setIdVenta(id);
-        ventaMock.setIdUsuario(1); // Admin por defecto para la prueba
-        ventaMock.setMetodoPago("EFECTIVO");
+        // 1. Buscar la venta real por ID
+        Venta venta = ventaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Venta no encontrada con ID: " + id));
 
-        // Buscaremos simular un detalle de venta para validar que rinda la tabla
-        DetalleVenta detalleMock = new DetalleVenta();
-        com.SieteStore.SietestoreInit.model.Producto pMock = new com.SieteStore.SietestoreInit.model.Producto();
-        pMock.setIdProducto(10);
-        pMock.setNombre("Camiseta Oversize Negra");
-        detalleMock.setProducto(pMock);
-        detalleMock.setCantidad(2);
+        // 2. Buscar los detalles de la venta
+        List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(id);
 
-        List<DetalleVenta> detallesMock = List.of(detalleMock);
+        if (detalles.isEmpty()) {
+            throw new RuntimeException("La venta con ID " + id + " no tiene detalles asociados");
+        }
 
-        // 2. Ejecutar generación binaria del archivo
-        byte[] pdfBytes = pdfService.generarReciboVenta(ventaMock, detallesMock);
+        // 3. Generar el PDF con datos reales
+        byte[] pdfBytes = pdfService.generarReciboVenta(venta, detalles);
 
-        // 3. Estructurar headers HTTP de descarga nativa
+        // 4. Estructurar headers HTTP de descarga
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("inline", "Recibo_SieteStore_" + id + ".pdf");
@@ -148,5 +151,28 @@ public class VentaController {
         }
     }
     
+    @GetMapping
+    public ResponseEntity<List<Map<String, Object>>> obtenerVentas(
+            @RequestParam(required = false) Integer limit) {
+
+        List<Object[]> ventas;
+        if (limit != null) {
+            ventas = ventaRepository.findTopNByOrderByFechaHoraDesc(limit);
+        } else {
+            ventas = ventaRepository.findAllVentasWithUser();
+        }
+
+        List<Map<String, Object>> response = ventas.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id_venta", row[0]);
+            map.put("fecha_hora", row[1]);
+            map.put("metodo_pago", row[2]);
+            map.put("total_venta", row[3]);
+            map.put("usuario_nombre", row[4]);
+            return map;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
     
-}
+}//fin de clase

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import com.SieteStore.SietestoreInit.repository.ProductoRepository;
 import com.SieteStore.SietestoreInit.repository.UsuarioRepository;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -20,14 +21,12 @@ public class ProductoController {
     // Método auxiliar de control de acceso por software (RA-03)
     private void validarAccesoAdmin(Integer idUsuarioContexto) {
         if (idUsuarioContexto == null) {
-            throw new RuntimeException("Acceso Denegado: No se proporcionó identidad de usuario (Header X-User-Id faltante).");
+            throw new RuntimeException("Acceso denegado: No se proporcionó identidad de usuario (X-User-Id faltante).");
         }
-
         Usuario usuario = usuarioRepository.findById(idUsuarioContexto)
-                .orElseThrow(() -> new RuntimeException("Acceso Denegado: El usuario no existe en el sistema."));
-
+                .orElseThrow(() -> new RuntimeException("Acceso denegado: El usuario no existe."));
         if (!"ADMINISTRADOR".equalsIgnoreCase(usuario.getRol())) {
-            throw new RuntimeException("Acceso Denegado: El rol 'EMPLEADO' no tiene permisos para modificar el catálogo.");
+            throw new RuntimeException("Acceso denegado: El rol 'EMPLEADO' no tiene permisos para modificar el catálogo.");
         }
     }
     
@@ -51,8 +50,14 @@ public class ProductoController {
     }
 
     @PostMapping
-    public Producto guardar(@RequestBody Producto producto) {
-        return productoRepository.save(producto);
+    public ResponseEntity<?> guardar(@RequestBody Producto producto, 
+                                     @RequestHeader(value = "X-User-Id", required = false) Integer userIdHeader) {
+        try {
+            validarAccesoAdmin(userIdHeader);
+            return ResponseEntity.ok(productoRepository.save(producto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -132,6 +137,14 @@ public Producto duplicarProducto(@PathVariable Integer id) {
     copia.setActivo(original.getActivo());
 
     return productoRepository.save(copia);
+}
+
+
+@GetMapping("/low-stock")
+public ResponseEntity<List<Producto>> obtenerProductosBajoStock(
+        @RequestParam(defaultValue = "3") Integer threshold) {
+    List<Producto> productos = productoRepository.findByActivoTrueAndStockActualLessThanEqual(threshold);
+    return ResponseEntity.ok(productos);
 }
 
 }

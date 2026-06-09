@@ -6,142 +6,137 @@ export default class AdminDashboardView {
     // 🟢 MÉTODOS QUE RENDERIZAN SOLO EL CONTENIDO (Sin Sidebar)
     // ============================================================
 
-    static renderDashboardContent() {
-        const ventasMes = PosView.sales.reduce((sum, sale) => sum + sale.total, 0);
-        const hoy = new Date().toLocaleDateString();
-        const ventasHoy = PosView.sales
-            .filter(sale => sale.date === hoy) // 🔥 Coincidencia exacta de fecha
-            .reduce((sum, sale) => sum + sale.total, 0);
-        const totalStock = PosView.products.reduce((sum, product) => sum + product.stock, 0);
-        const stockCritico = PosView.products.filter(product => product.stock <= 1).length;
+    static async renderDashboardContent() {
+    const stats = await this.loadDashboardStats();
+    
+    if (!stats) {
+        return `<div class="error">Error cargando datos del dashboard</div>`;
+    }
 
-        return `
-            <header class="dashboard-header">
-                <div>
-                    <h1>Dashboard</h1>
-                    <p>Resumen de actividad y métricas clave.</p>
-                </div>
-                <div class="date-box">${new Date().toLocaleDateString()}</div>
-            </header>
+    const ventasMes = stats.ventasMes || 0;
+    const ventasHoy = stats.ventasHoy || 0;
+    const stockTotal = stats.stockTotal || 0;
+    const stockCritico = stats.stockCritico || 0;
 
-            <section class="stats-grid">
-                <div class="stat-card">
-                    <h4>Ventas del Mes</h4>
-                    <h2>$${ventasMes.toFixed(2)}</h2>
-                </div>
-                <div class="stat-card">
-                    <h4>Ventas de Hoy</h4>
-                    <h2>$${ventasHoy.toFixed(2)}</h2>
-                </div>
-                <div class="stat-card">
-                    <h4>Total en Stock</h4>
-                    <h2>${totalStock}</h2>
-                </div>
-                <div class="stat-card danger">
-                    <h4>Stock Crítico</h4>
-                    <h2>${stockCritico}</h2>
-                </div>
-            </section>
+    // Preparar datos para el gráfico
+    const labels = [];
+    const data = [];
+    if (stats.ventasPorDia) {
+        stats.ventasPorDia.forEach(dia => {
+            const fecha = new Date(dia[0]);
+            labels.push(`${fecha.getDate()}/${fecha.getMonth() + 1}`);
+            data.push(dia[1]);
+        });
+    }
 
-            <section class="dashboard-main">
-                <div class="chart-box">
-                    <h3>Ventas (Últimos 7 días)</h3>
-                    <canvas id="salesWeekChart" width="400" height="200" style="max-width:100%; height:auto;"></canvas>
-                </div>
-                <div class="alerts-box">
-                    <h3>Alertas de Stock</h3>
-                    <div class="alert-list">
-                        ${PosView.products.filter(p => p.stock <= 1).length > 0
-                            ? PosView.products.filter(p => p.stock <= 1).map(p => `
-                                <div class="alert-item">
-                                    <span class="alert-product">${p.name}</span>
-                                    <span class="alert-stock ${p.stock === 0 ? 'status-out' : 'status-danger'}">${p.stock}</span>
-                                </div>
-                            `).join('')
-                            : '<p class="text-muted">No hay productos críticos.</p>'
-                        }
-                    </div>
-                </div>
-            </section>
+    // Si no hay datos, rellenar con ceros para los últimos 7 días
+    while (labels.length < 7) {
+        const today = new Date();
+        const day = new Date(today);
+        day.setDate(today.getDate() - (6 - labels.length));
+        labels.push(`${day.getDate()}/${day.getMonth() + 1}`);
+        data.push(0);
+    }
 
-            <section class="sales-table">
-                <h3>Últimas Ventas</h3>
-                <table class="report-table">
-                    <thead>
-                        <tr><th>ID VENTA</th><th>FECHA</th><th>ITEMS</th><th>MÉTODO</th><th>TOTAL</th></tr>
-                    </thead>
-                    <tbody>
-                        ${PosView.sales.length > 0
-                            ? PosView.sales.slice().reverse().map(sale => `
-                                <tr>
-                                    <td>#${sale.id}</td>
-                                    <td>${sale.date}</td>
-                                    <td>${sale.items.length} prendas</td>
-                                    <td>${sale.payment}</td>
-                                    <td><span class="stock-number">$${sale.total}.00</span></td>
-                                </tr>
-                            `).join('')
-                            : '<tr><td colspan="5">No hay ventas registradas</td></tr>'
-                        }
-                    </tbody>
-                </table>
-            </section>
-        `;
+    return `
+        <header class="dashboard-header">
+            <div>
+                <h1>Dashboard</h1>
+                <p>Resumen de actividad y métricas clave.</p>
+            </div>
+            <div class="date-box">${new Date().toLocaleDateString()}</div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <h4>Ventas del Mes</h4>
+                <h2>$${ventasMes.toFixed(2)}</h2>
+            </div>
+            <div class="stat-card">
+                <h4>Ventas de Hoy</h4>
+                <h2>$${ventasHoy.toFixed(2)}</h2>
+            </div>
+            <div class="stat-card">
+                <h4>Total en Stock</h4>
+                <h2>${stockTotal}</h2>
+            </div>
+            <div class="stat-card danger">
+                <h4>Stock Crítico</h4>
+                <h2>${stockCritico}</h2>
+            </div>
+        </section>
+
+        <section class="dashboard-main">
+            <div class="chart-box">
+                <h3>Ventas (Últimos 7 días)</h3>
+                <canvas id="salesWeekChart" width="400" height="200" style="max-width:100%; height:auto;"></canvas>
+            </div>
+            <div class="alerts-box">
+                <h3>Alertas de Stock</h3>
+                <div class="alert-list" id="alertList">
+                    <!-- Se cargará dinámicamente -->
+                </div>
+            </div>
+        </section>
+
+        <section class="sales-table">
+            <h3>Últimas Ventas</h3>
+            <table class="report-table">
+                <thead>
+                    <tr><th>ID VENTA</th><th>FECHA</th><th>MÉTODO</th><th>VENDEDOR</th><th>TOTAL</th></tr>
+                </thead>
+                <tbody id="ultimasVentasTable">
+                </tbody>
+            </table>
+        </section>
+    `;
     }
 
     static renderInventoryContent() {
-        return `
-            <div class="inventory-header">
-                <div>
-                    <h1>Inventario</h1>
-                    <p>Gestión del catálogo de productos y stock.</p>
-                </div>
-                <button class="export-btn" id="btn-new-product">+ Nuevo Producto</button>
+    return `
+        <div class="inventory-header">
+            <div>
+                <h1>Inventario</h1>
+                <p>Gestión del catálogo de productos y stock.</p>
             </div>
-            <div class="inventory-table">
-                <table>
-                    <thead>
-                        <tr><th>PRODUCTO</th><th>CATEGORÍA</th><th>TALLA / COLOR</th><th>PRECIO</th><th>STOCK</th></tr>
-                    </thead>
-                    <tbody>
-                        ${PosView.products.map(product => `
-                            <tr>
-                                <td>
-                                    <img src="${product.image}" alt="${product.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; vertical-align: middle;">
-                                    ${product.name}
-                                </td>
-                                <td><span class="category-badge">${product.category}</span></td>
-                                <td>${product.talla}<br>${product.color}</td>
-                                <td>$${product.price}.00</td>
-                                <td class="stock-number ${product.stock <= 3 ? 'stock-low' : ''}">${product.stock}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
+            <button class="export-btn" id="btn-new-product">+ Nuevo Producto</button>
+        </div>
+        <div class="inventory-table">
+            <table>
+                <thead>
+                    <tr><th>PRODUCTO</th><th>CATEGORÍA</th><th>TALLA / COLOR</th><th>PRECIO</th><th>STOCK</th></tr>
+                </thead>
+                <tbody>
+                    ${PosView.products.map(product => `
+                        <tr>
+                            <td>
+                                ${product.name}
+                            </td>
+                            <td><span class="category-badge">${product.category}</span></td>
+                            <td>${product.talla}<br>${product.color}</td>
+                            <td>$${product.price}.00</td>
+                            <td class="stock-number ${product.stock <= 3 ? 'stock-low' : ''}">${product.stock}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
 
     // ============================================================
     // 📊 REPORTES CON DISEÑO ESTABLE Y UNIFICADO
     // ============================================================
 
     static renderReportsContent() {
-        const productsSold = {};
-        PosView.sales.forEach(sale => {
-            sale.items.forEach(item => {
-                productsSold[item.name] = (productsSold[item.name] || 0) + item.qty;
-            });
-        });
-        const topProducts = Object.entries(productsSold).sort((a, b) => b[1] - a[1]);
-
+        // Eliminamos el uso de PosView.sales porque ahora se cargará dinámicamente desde el backend
         return `
             <div class="reports-header">
                 <div>
                     <h1>Reportes Gerenciales</h1>
                     <p>Análisis de ventas e inventario para toma de decisiones.</p>
                 </div>
-                <button class="export-btn">⬇ Exportar</button>
+                <button class="export-btn" onclick="window.exportReport()">⬇ Exportar</button>
             </div>
             <div class="reports-tabs">
                 <button class="report-tab active" id="tab-top" onclick="window.showReportTab('top')">📈 Más Vendidos</button>
@@ -152,18 +147,14 @@ export default class AdminDashboardView {
                 <div id="topProductsView">
                     <div class="filters">
                         <label>Período <select><option>Últimos 7 días</option><option>Últimos 30 días</option></select></label>
-                        <label>Categoría <select><option>Todas</option><option>Dama</option><option>Caballero</option><option>Gorra</option></select></label>
                     </div>
                     <h2>Top Productos Más Vendidos</h2>
                     <table class="report-table">
                         <thead>
                             <tr><th>Producto</th><th>Unidades Vendidas</th></tr>
                         </thead>
-                        <tbody>
-                            ${topProducts.length > 0
-                                ? topProducts.map(p => `<tr><td>${p[0]}</td><td>${p[1]}</td></tr>`).join('')
-                                : '<tr><td colspan="2">No hay ventas registradas.</td></tr>'
-                            }
+                        <tbody id="topProductsTable">
+                            <tr><td colspan="2">Cargando datos...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -173,14 +164,8 @@ export default class AdminDashboardView {
                         <thead>
                             <tr><th>Producto</th><th>Stock</th><th>Estado</th></tr>
                         </thead>
-                        <tbody>
-                            ${PosView.products.filter(p => p.stock <= 3).map(p => `
-                                <tr>
-                                    <td>${p.name}</td>
-                                    <td>${p.stock}</td>
-                                    <td>${p.stock === 0 ? '<span class="status-out">Agotado</span>' : p.stock === 1 ? '<span class="status-danger">Crítico</span>' : '<span class="status-good">Bueno</span>'}</td>
-                                </tr>
-                            `).join('')}
+                        <tbody id="stockBajoTable">
+                            <tr><td colspan="3">Cargando datos...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -188,13 +173,10 @@ export default class AdminDashboardView {
                     <h2>Historial de Ventas</h2>
                     <table class="report-table">
                         <thead>
-                            <tr><th>ID</th><th>Fecha</th><th>Método</th><th>Total</th></tr>
+                            <tr><th>ID</th><th>Fecha</th><th>Método</th><th>Total</th><th>Recibo</th></tr>
                         </thead>
-                        <tbody>
-                            ${PosView.sales.length > 0
-                                ? PosView.sales.map(s => `<tr><td>#${s.id}</td><td>${s.date}</td><td>${s.payment}</td><td><span class="stock-number">$${s.total}.00</span></td></tr>`).join('')
-                                : '<tr><td colspan="4">No hay ventas registradas</td></tr>'
-                            }
+                        <tbody id="historialVentasTable">
+                            <tr><td colspan="5">Cargando historial...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -228,7 +210,8 @@ export default class AdminDashboardView {
             <div class="modal">
                 <h2>Nuevo Producto</h2>
                 <input id="productName" placeholder="Nombre">
-                <input id="productPrice" type="number" placeholder="Precio">
+                <input id="productPrice" type="number" placeholder="Precio de venta">
+                <input id="productCost" type="number" placeholder="Costo"> 
                 <input id="productStock" type="number" placeholder="Stock">
                 <input id="productTalla" placeholder="Talla">
                 <input id="productColor" placeholder="Color">
@@ -237,7 +220,6 @@ export default class AdminDashboardView {
                     <option value="caballero">Caballero</option>
                     <option value="gorra">Gorra</option>
                 </select>
-                <input id="productImage" placeholder="Ruta imagen">
                 <div class="modal-buttons">
                     <button id="cancelProduct">Cancelar</button>
                     <button id="saveProduct">Crear Producto</button>
@@ -251,7 +233,6 @@ export default class AdminDashboardView {
         });
         document.getElementById("saveProduct").addEventListener("click", () => {
             AdminDashboardView.createProduct();
-            document.getElementById("new-product-modal").remove();
         });
     }
 
@@ -262,70 +243,271 @@ export default class AdminDashboardView {
         }
     }
 
-    static createProduct() {
-        const newProduct = {
-            id: PosView.products.length + 1,
-            name: document.getElementById("productName").value,
-            price: Number(document.getElementById("productPrice").value),
-            stock: Number(document.getElementById("productStock").value),
-            talla: document.getElementById("productTalla").value,
-            color: document.getElementById("productColor").value,
-            category: document.getElementById("productCategory").value,
-            image: document.getElementById("productImage").value || "assets/images/gorra.jpeg"
-        };
-        PosView.products.push(newProduct);
-        window.navegarA('inventory');
-    }
-
-    static drawSalesChart() {
-        const canvas = document.getElementById("salesWeekChart");
-        if (!canvas) return;
-
-        const sales = PosView.sales || [];
-        const today = new Date();
-        const last7Days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(today.getDate() - i);
-            last7Days.push(d.toLocaleDateString());
+    static async createProduct() {
+        if (!window.currentUser || !window.currentUser.id) {
+            alert("Error: No hay sesión activa. Por favor, recarga la página y vuelve a iniciar sesión.");
+            return;
         }
 
-        const dailyTotals = new Array(7).fill(0);
-        sales.forEach(sale => {
-            const dayIndex = last7Days.findIndex(day => day === sale.date);
-            if (dayIndex !== -1) dailyTotals[dayIndex] += sale.total;
-        });
+            const nuevoProducto = {
+            codigoReferencia: "PROD-" + Date.now(),
+            nombre: document.getElementById("productName").value,
+            idCategoria: document.getElementById("productCategory").value === 'dama' ? 1 : 
+                        document.getElementById("productCategory").value === 'caballero' ? 2 : 3,
+            talla: document.getElementById("productTalla").value,
+            color: document.getElementById("productColor").value,
+            precioVenta: Number(document.getElementById("productPrice").value),
+            costo: Number(document.getElementById("productCost").value), // 🔥 AGREGADO
+            stockActual: Number(document.getElementById("productStock").value),
+            stockMinimo: 5,
+            activo: true
+        };
 
-        const labels = last7Days.map(day => day.split('/').slice(0,2).join('/'));
-        if (window.salesChartInstance) window.salesChartInstance.destroy();
+        if (!nuevoProducto.costo || nuevoProducto.costo <= 0) {
+            alert("El costo debe ser un número positivo.");
+            return;
+        }
 
-        const ctx = canvas.getContext('2d');
-        window.salesChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Ventas ($)',
-                    data: dailyTotals,
-                    backgroundColor: '#09142f',
-                    borderRadius: 8,
-                    barPercentage: 0.6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: { callbacks: { label: (ctx) => `$${ctx.raw.toFixed(2)}` } }
+        try {
+            const response = await fetch('http://localhost:8080/api/productos', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-User-Id': window.currentUser.id.toString()
                 },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Monto ($)' }, ticks: { callback: (value) => `$${value}` } },
-                    x: { title: { display: true, text: 'Día' } }
-                }
+                body: JSON.stringify(nuevoProducto)
+            });
+
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                alert("Error del servidor: " + errorMsg);
+                return;
             }
-        });
+
+            alert("✅ Producto creado exitosamente");
+            document.getElementById("new-product-modal").remove();
+            await window.loadData();
+            window.navegarA('inventory');
+        } catch (error) {
+            console.error('Error al crear producto:', error);
+            alert("Error de conexión con el servidor.");
+        }
     }
 
-    static bindReportsEvents() {}
-}
+    static drawSalesChart(labels, data) {
+    const canvas = document.getElementById("salesWeekChart");
+    if (!canvas) return;
+
+    if (window.salesChartInstance) window.salesChartInstance.destroy();
+
+    const ctx = canvas.getContext('2d');
+    window.salesChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ventas ($)',
+                data: data,
+                backgroundColor: '#09142f',
+                borderRadius: 8,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { callbacks: { label: (ctx) => `$${ctx.raw.toFixed(2)}` } }
+            },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Monto ($)' }, ticks: { callback: (value) => `$${value}` } },
+                x: { title: { display: true, text: 'Día' } }
+            }
+        }
+    });
+    }
+
+    static async loadDashboardStats() {
+        try {
+            const response = await fetch('http://localhost:8080/api/stats');
+            if (!response.ok) throw new Error('Error al cargar estadísticas');
+            const stats = await response.json();
+            return stats;
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+            return null;
+        }
+    }
+
+    static async loadAlertasStock() {
+        try {
+            const response = await fetch('http://localhost:8080/api/productos/low-stock?threshold=3');
+            if (!response.ok) throw new Error('Error cargando alertas');
+            const productos = await response.json();
+            
+            const alertList = document.getElementById('alertList');
+            if (productos.length === 0) {
+                alertList.innerHTML = '<p class="text-muted">No hay productos críticos.</p>';
+                return;
+            }
+            
+            alertList.innerHTML = productos.map(p => `
+                <div class="alert-item">
+                    <span class="alert-product">${p.nombre}</span>
+                    <span class="alert-stock ${p.stockActual === 0 ? 'status-out' : 'status-danger'}">${p.stockActual}</span>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error cargando alertas:', error);
+        }
+    }
+
+    // Cargar últimas ventas para el dashboard
+    static async loadUltimasVentas() {
+        try {
+            const response = await fetch('http://localhost:8080/api/ventas?limit=5');
+            if (!response.ok) throw new Error('Error cargando ventas');
+            const ventas = await response.json();
+            
+            const tableBody = document.getElementById('ultimasVentasTable');
+            if (!tableBody) return;
+            
+            if (ventas.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5">No hay ventas registradas</td></tr>';
+                return;
+            }
+            
+            tableBody.innerHTML = ventas.map(v => `
+                <tr>
+                    <td>#${v.id_venta}</td>
+                    <td>${new Date(v.fecha_hora).toLocaleDateString()}</td>
+                    <td>${v.metodo_pago}</td>
+                    <td>${v.usuario_nombre}</td>
+                    <td><span class="stock-number">$${v.total_venta.toFixed(2)}</span></td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('Error cargando ventas:', error);
+        }
+    }
+
+    static async loadHistorialVentas() {
+        try {
+            const response = await fetch('http://localhost:8080/api/ventas');
+            if (!response.ok) throw new Error('Error cargando historial');
+            const ventas = await response.json();
+            
+            const tableBody = document.getElementById('historialVentasTable');
+            if (!tableBody) return;
+            
+            if (ventas.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5">No hay ventas registradas</td></tr>';
+                return;
+            }
+            
+            // 🔥 AGREGAMOS EL BOTÓN EN LA ÚLTIMA COLUMNA
+            tableBody.innerHTML = ventas.map(v => `
+                <tr>
+                    <td>#${v.id_venta}</td>
+                    <td>${new Date(v.fecha_hora).toLocaleDateString()}</td>
+                    <td>${v.metodo_pago}</td>
+                    <td><span class="stock-number">$${v.total_venta.toFixed(2)}</span></td>
+                    <td>
+                        <button onclick="window.downloadReceipt(${v.id_venta})" 
+                            style="background-color: #07142e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                            Recibo
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('Error cargando historial de ventas:', error);
+            const tableBody = document.getElementById('historialVentasTable');
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="5">Error al cargar el historial</td></tr>';
+            }
+        }
+    }
+
+    static async loadTopProducts() {
+        const tableBody = document.getElementById('topProductsTable');
+        if (!tableBody) return;
+
+        // Obtener el ID de categoría seleccionado
+        const categorySelect = document.querySelector('#topProductsView select:nth-of-type(2)');
+        let categoryId = null;
+        if (categorySelect) {
+            const selectedText = categorySelect.value;
+            // Mapeo: 'Todas' = null, 'Dama' = 1, 'Caballero' = 2, 'Gorra' = 3
+            const map = { 'Todas': null, 'Dama': 1, 'Caballero': 2, 'Gorra': 3 };
+            categoryId = map[selectedText] || null;
+        }
+
+        try {
+            // Construir URL con parámetro
+            let url = 'http://localhost:8080/api/dashboard/top-productos';
+            if (categoryId !== null) {
+                url += `?categoryId=${categoryId}`;
+            }
+            
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+
+            const productos = await response.json();
+
+            if (productos.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="2">No hay ventas registradas.</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = productos.map(p => `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.totalVendido}</td>
+                </tr>
+            `).join('');
+
+        } catch (error) {
+            console.error('Error cargando top productos:', error);
+            tableBody.innerHTML = '<tr><td colspan="2" style="color: #ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
+        }
+    }
+
+    static async loadStockBajo() {
+        const tableBody = document.getElementById('stockBajoTable');
+        if (!tableBody) return;
+
+        try {
+            const response = await fetch('http://localhost:8080/api/productos/low-stock?threshold=3');
+            
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor');
+            }
+
+            const productos = await response.json();
+            
+            if (productos.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="3">No hay productos con stock bajo.</td></tr>';
+                return;
+            }
+            
+            tableBody.innerHTML = productos.map(p => `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.stockActual}</td>
+                    <td>${p.stockActual === 0 ? '<span class="status-out">Agotado</span>' : p.stockActual <= 1 ? '<span class="status-danger">Crítico</span>' : '<span class="status-good">Bueno</span>'}</td>
+                </tr>
+            `).join('');
+            
+        } catch (error) {
+            console.error('Error cargando stock bajo:', error);
+            // 🔥 Actualizamos la UI para que no se quede congelada
+            tableBody.innerHTML = '<tr><td colspan="3" style="color: #ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
+        }
+    }
+
+} // Fin de la clase AdminDashboardView

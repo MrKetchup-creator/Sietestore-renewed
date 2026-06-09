@@ -33,7 +33,7 @@ public class DetalleVenta {
 
     @Column(name = "precio_unitario", nullable = false)
     private BigDecimal precioUnitario;
-
+   
     @Column(insertable = false, updatable = false)
     private BigDecimal subtotal;
 }

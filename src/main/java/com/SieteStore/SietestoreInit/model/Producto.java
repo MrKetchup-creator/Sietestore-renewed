@@ -34,5 +34,9 @@ public class Producto {
     private Integer stockActual;
     
     private Integer stockMinimo;
+    
+    @Column(nullable = false) // o @Column(nullable = false, columnDefinition = "DECIMAL(10,2)")
+    private BigDecimal costo; // faltante anteriormente
+    
     private Boolean activo = true;
 }
