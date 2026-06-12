@@ -7,9 +7,15 @@
     <link rel="stylesheet" href="./assets/css/login.css">
     <link rel="stylesheet" href="./assets/css/admin.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- 🔥 INYECCIÓN GLOBAL DE LA URL DEL BACKEND -->
+    <script>
+        window.API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:8080'
+            : 'https://sietestore-backend.onrender.com';
+        console.log('API_BASE_URL configurada:', window.API_BASE_URL);
+    </script>
 </head>
 <body>
-    <!-- El JavaScript llenará este contenedor con la vista correcta -->
     <div id="app"></div>
     <script type="module" src="./assets/js/app.js"></script>
 </body>

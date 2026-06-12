@@ -1,136 +1,115 @@
 import PosView from './PosView.js';
-import { API_BASE_URL } from '../../assets/js/config.js';
 
 export default class AdminDashboardView {
 
-    // ============================================================
-    // 🟢 MÉTODOS QUE RENDERIZAN SOLO EL CONTENIDO (Sin Sidebar)
-    // ============================================================
-
     static async renderDashboardContent() {
-    const stats = await this.loadDashboardStats();
-    
-    if (!stats) {
-        return `<div class="error">Error cargando datos del dashboard</div>`;
-    }
+        const stats = await this.loadDashboardStats();
+        
+        if (!stats) {
+            return `<div class="error">Error cargando datos del dashboard</div>`;
+        }
 
-    const ventasMes = stats.ventasMes || 0;
-    const ventasHoy = stats.ventasHoy || 0;
-    const stockTotal = stats.stockTotal || 0;
-    const stockCritico = stats.stockCritico || 0;
+        const ventasMes = stats.ventasMes || 0;
+        const ventasHoy = stats.ventasHoy || 0;
+        const stockTotal = stats.stockTotal || 0;
+        const stockCritico = stats.stockCritico || 0;
 
-    // Preparar datos para el gráfico
-    const labels = [];
-    const data = [];
-    if (stats.ventasPorDia) {
-        stats.ventasPorDia.forEach(dia => {
-            const fecha = new Date(dia[0]);
-            labels.push(`${fecha.getDate()}/${fecha.getMonth() + 1}`);
-            data.push(dia[1]);
-        });
-    }
+        const labels = [];
+        const data = [];
+        if (stats.ventasPorDia) {
+            stats.ventasPorDia.forEach(dia => {
+                const fecha = new Date(dia[0]);
+                labels.push(`${fecha.getDate()}/${fecha.getMonth() + 1}`);
+                data.push(dia[1]);
+            });
+        }
 
-    // Si no hay datos, rellenar con ceros para los últimos 7 días
-    while (labels.length < 7) {
-        const today = new Date();
-        const day = new Date(today);
-        day.setDate(today.getDate() - (6 - labels.length));
-        labels.push(`${day.getDate()}/${day.getMonth() + 1}`);
-        data.push(0);
-    }
+        while (labels.length < 7) {
+            const today = new Date();
+            const day = new Date(today);
+            day.setDate(today.getDate() - (6 - labels.length));
+            labels.push(`${day.getDate()}/${day.getMonth() + 1}`);
+            data.push(0);
+        }
 
-    return `
-        <header class="dashboard-header">
-            <div>
-                <h1>Dashboard</h1>
-                <p>Resumen de actividad y métricas clave.</p>
-            </div>
-            <div class="date-box">${new Date().toLocaleDateString()}</div>
-        </header>
-
-        <section class="stats-grid">
-            <div class="stat-card">
-                <h4>Ventas del Mes</h4>
-                <h2>$${ventasMes.toFixed(2)}</h2>
-            </div>
-            <div class="stat-card">
-                <h4>Ventas de Hoy</h4>
-                <h2>$${ventasHoy.toFixed(2)}</h2>
-            </div>
-            <div class="stat-card">
-                <h4>Total en Stock</h4>
-                <h2>${stockTotal}</h2>
-            </div>
-            <div class="stat-card danger">
-                <h4>Stock Crítico</h4>
-                <h2>${stockCritico}</h2>
-            </div>
-        </section>
-
-        <section class="dashboard-main">
-            <div class="chart-box">
-                <h3>Ventas (Últimos 7 días)</h3>
-                <canvas id="salesWeekChart" width="400" height="200" style="max-width:100%; height:auto;"></canvas>
-            </div>
-            <div class="alerts-box">
-                <h3>Alertas de Stock</h3>
-                <div class="alert-list" id="alertList">
-                    <!-- Se cargará dinámicamente -->
+        return `
+            <header class="dashboard-header">
+                <div>
+                    <h1>Dashboard</h1>
+                    <p>Resumen de actividad y métricas clave.</p>
                 </div>
-            </div>
-        </section>
+                <div class="date-box">${new Date().toLocaleDateString()}</div>
+            </header>
 
-        <section class="sales-table">
-            <h3>Últimas Ventas</h3>
-            <table class="report-table">
-                <thead>
-                    <tr><th>ID VENTA</th><th>FECHA</th><th>MÉTODO</th><th>VENDEDOR</th><th>TOTAL</th></tr>
-                </thead>
-                <tbody id="ultimasVentasTable">
-                </tbody>
-            </table>
-        </section>
-    `;
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <h4>Ventas del Mes</h4>
+                    <h2>$${ventasMes.toFixed(2)}</h2>
+                </div>
+                <div class="stat-card">
+                    <h4>Ventas de Hoy</h4>
+                    <h2>$${ventasHoy.toFixed(2)}</h2>
+                </div>
+                <div class="stat-card">
+                    <h4>Total en Stock</h4>
+                    <h2>${stockTotal}</h2>
+                </div>
+                <div class="stat-card danger">
+                    <h4>Stock Crítico</h4>
+                    <h2>${stockCritico}</h2>
+                </div>
+            </section>
+
+            <section class="dashboard-main">
+                <div class="chart-box">
+                    <h3>Ventas (Últimos 7 días)</h3>
+                    <canvas id="salesWeekChart" width="400" height="200" style="max-width:100%; height:auto;"></canvas>
+                </div>
+                <div class="alerts-box">
+                    <h3>Alertas de Stock</h3>
+                    <div class="alert-list" id="alertList"></div>
+                </div>
+            </section>
+
+            <section class="sales-table">
+                <h3>Últimas Ventas</h3>
+                <table class="report-table">
+                    <thead><tr><th>ID VENTA</th><th>FECHA</th><th>MÉTODO</th><th>VENDEDOR</th><th>TOTAL</th></tr></thead>
+                    <tbody id="ultimasVentasTable"></tbody>
+                </table>
+            </section>
+        `;
     }
 
     static renderInventoryContent() {
-    return `
-        <div class="inventory-header">
-            <div>
-                <h1>Inventario</h1>
-                <p>Gestión del catálogo de productos y stock.</p>
+        return `
+            <div class="inventory-header">
+                <div>
+                    <h1>Inventario</h1>
+                    <p>Gestión del catálogo de productos y stock.</p>
+                </div>
+                <button class="export-btn" id="btn-new-product">+ Nuevo Producto</button>
             </div>
-            <button class="export-btn" id="btn-new-product">+ Nuevo Producto</button>
-        </div>
-        <div class="inventory-table">
-            <table>
-                <thead>
-                    <tr><th>PRODUCTO</th><th>CATEGORÍA</th><th>TALLA / COLOR</th><th>PRECIO</th><th>STOCK</th></tr>
-                </thead>
-                <tbody>
-                    ${PosView.products.map(product => `
-                        <tr>
-                            <td>
-                                ${product.name}
-                            </td>
-                            <td><span class="category-badge">${product.category}</span></td>
-                            <td>${product.talla}<br>${product.color}</td>
-                            <td>$${product.price}.00</td>
-                            <td class="stock-number ${product.stock <= 3 ? 'stock-low' : ''}">${product.stock}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-
-    // ============================================================
-    // 📊 REPORTES CON DISEÑO ESTABLE Y UNIFICADO
-    // ============================================================
+            <div class="inventory-table">
+                <table>
+                    <thead><tr><th>PRODUCTO</th><th>CATEGORÍA</th><th>TALLA / COLOR</th><th>PRECIO</th><th>STOCK</th></tr></thead>
+                    <tbody>
+                        ${PosView.products.map(product => `
+                            <tr>
+                                <td>${product.name}</td>
+                                <td><span class="category-badge">${product.category}</span></td>
+                                <td>${product.talla}<br>${product.color}</td>
+                                <td>$${product.price}.00</td>
+                                <td class="stock-number ${product.stock <= 3 ? 'stock-low' : ''}">${product.stock}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
 
     static renderReportsContent() {
-        // Eliminamos el uso de PosView.sales porque ahora se cargará dinámicamente desde el backend
         return `
             <div class="reports-header">
                 <div>
@@ -151,43 +130,27 @@ export default class AdminDashboardView {
                     </div>
                     <h2>Top Productos Más Vendidos</h2>
                     <table class="report-table">
-                        <thead>
-                            <tr><th>Producto</th><th>Unidades Vendidas</th></tr>
-                        </thead>
-                        <tbody id="topProductsTable">
-                            <tr><td colspan="2">Cargando datos...</td></tr>
-                        </tbody>
+                        <thead><tr><th>Producto</th><th>Unidades Vendidas</th></tr></thead>
+                        <tbody id="topProductsTable"><tr><td colspan="2">Cargando datos...</td></tr></tbody>
                     </table>
                 </div>
                 <div id="stockView" style="display:none;">
                     <h2>Productos con Stock Bajo</h2>
                     <table class="report-table">
-                        <thead>
-                            <tr><th>Producto</th><th>Stock</th><th>Estado</th></tr>
-                        </thead>
-                        <tbody id="stockBajoTable">
-                            <tr><td colspan="3">Cargando datos...</td></tr>
-                        </tbody>
+                        <thead><tr><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead>
+                        <tbody id="stockBajoTable"><tr><td colspan="3">Cargando datos...</td></tr></tbody>
                     </table>
                 </div>
                 <div id="historyView" style="display:none;">
                     <h2>Historial de Ventas</h2>
                     <table class="report-table">
-                        <thead>
-                            <tr><th>ID</th><th>Fecha</th><th>Método</th><th>Total</th><th>Recibo</th></tr>
-                        </thead>
-                        <tbody id="historialVentasTable">
-                            <tr><td colspan="5">Cargando historial...</td></tr>
-                        </tbody>
+                        <thead><tr><th>ID</th><th>Fecha</th><th>Método</th><th>Total</th><th>Recibo</th></tr></thead>
+                        <tbody id="historialVentasTable"><tr><td colspan="5">Cargando historial...</td></tr></tbody>
                     </table>
                 </div>
             </div>
         `;
     }
-
-    // ============================================================
-    // 🔧 LÓGICA DE MODALES (Sin cambios, pero robusta)
-    // ============================================================
 
     static bindInventoryEvents() {
         const newProductBtn = document.getElementById("btn-new-product");
@@ -200,9 +163,7 @@ export default class AdminDashboardView {
 
     static showNewProductModal() {
         const existingModal = document.getElementById("new-product-modal");
-        if (existingModal) {
-            existingModal.remove();
-        }
+        if (existingModal) existingModal.remove();
 
         const modal = document.createElement("div");
         modal.id = "new-product-modal";
@@ -239,9 +200,7 @@ export default class AdminDashboardView {
 
     static removeNewProductModal() {
         const existingModal = document.getElementById("new-product-modal");
-        if (existingModal) {
-            existingModal.remove();
-        }
+        if (existingModal) existingModal.remove();
     }
 
     static async createProduct() {
@@ -250,7 +209,7 @@ export default class AdminDashboardView {
             return;
         }
 
-            const nuevoProducto = {
+        const nuevoProducto = {
             codigoReferencia: "PROD-" + Date.now(),
             nombre: document.getElementById("productName").value,
             idCategoria: document.getElementById("productCategory").value === 'dama' ? 1 : 
@@ -258,7 +217,7 @@ export default class AdminDashboardView {
             talla: document.getElementById("productTalla").value,
             color: document.getElementById("productColor").value,
             precioVenta: Number(document.getElementById("productPrice").value),
-            costo: Number(document.getElementById("productCost").value), // 🔥 AGREGADO
+            costo: Number(document.getElementById("productCost").value),
             stockActual: Number(document.getElementById("productStock").value),
             stockMinimo: 5,
             activo: true
@@ -270,7 +229,7 @@ export default class AdminDashboardView {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/productos`, { //modificar AQUI para usar API_BASE_URL
+            const response = await fetch(`${window.API_BASE_URL}/api/productos`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -296,45 +255,44 @@ export default class AdminDashboardView {
     }
 
     static drawSalesChart(labels, data) {
-    const canvas = document.getElementById("salesWeekChart");
-    if (!canvas) return;
+        const canvas = document.getElementById("salesWeekChart");
+        if (!canvas) return;
 
-    if (window.salesChartInstance) window.salesChartInstance.destroy();
+        if (window.salesChartInstance) window.salesChartInstance.destroy();
 
-    const ctx = canvas.getContext('2d');
-    window.salesChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Ventas ($)',
-                data: data,
-                backgroundColor: '#09142f',
-                borderRadius: 8,
-                barPercentage: 0.6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: { callbacks: { label: (ctx) => `$${ctx.raw.toFixed(2)}` } }
+        const ctx = canvas.getContext('2d');
+        window.salesChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ventas ($)',
+                    data: data,
+                    backgroundColor: '#09142f',
+                    borderRadius: 8,
+                    barPercentage: 0.6
+                }]
             },
-            scales: {
-                y: { beginAtZero: true, title: { display: true, text: 'Monto ($)' }, ticks: { callback: (value) => `$${value}` } },
-                x: { title: { display: true, text: 'Día' } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { callbacks: { label: (ctx) => `$${ctx.raw.toFixed(2)}` } }
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Monto ($)' }, ticks: { callback: (value) => `$${value}` } },
+                    x: { title: { display: true, text: 'Día' } }
+                }
             }
-        }
-    });
+        });
     }
 
     static async loadDashboardStats() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/stats`);  //modificar AQUI para usar API_BASE_URL
+            const response = await fetch(`${window.API_BASE_URL}/api/stats`);
             if (!response.ok) throw new Error('Error al cargar estadísticas');
-            const stats = await response.json();
-            return stats;
+            return await response.json();
         } catch (error) {
             console.error('Error cargando estadísticas:', error);
             return null;
@@ -343,7 +301,7 @@ export default class AdminDashboardView {
 
     static async loadAlertasStock() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/productos/low-stock?threshold=3`); //modificar AQUI para usar API_BASE_URL
+            const response = await fetch(`${window.API_BASE_URL}/api/productos/low-stock?threshold=3`);
             if (!response.ok) throw new Error('Error cargando alertas');
             const productos = await response.json();
             
@@ -364,10 +322,9 @@ export default class AdminDashboardView {
         }
     }
 
-    // Cargar últimas ventas para el dashboard
     static async loadUltimasVentas() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/ventas?limit=5`); //modificar AQUI para usar API_BASE_URL
+            const response = await fetch(`${window.API_BASE_URL}/api/ventas?limit=5`);
             if (!response.ok) throw new Error('Error cargando ventas');
             const ventas = await response.json();
             
@@ -395,7 +352,7 @@ export default class AdminDashboardView {
 
     static async loadHistorialVentas() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/ventas`); //modificar AQUI para usar API_BASE_URL
+            const response = await fetch(`${window.API_BASE_URL}/api/ventas`);
             if (!response.ok) throw new Error('Error cargando historial');
             const ventas = await response.json();
             
@@ -407,7 +364,6 @@ export default class AdminDashboardView {
                 return;
             }
             
-            // 🔥 AGREGAMOS EL BOTÓN EN LA ÚLTIMA COLUMNA
             tableBody.innerHTML = ventas.map(v => `
                 <tr>
                     <td>#${v.id_venta}</td>
@@ -435,29 +391,19 @@ export default class AdminDashboardView {
         const tableBody = document.getElementById('topProductsTable');
         if (!tableBody) return;
 
-        // Obtener el ID de categoría seleccionado
         const categorySelect = document.querySelector('#topProductsView select:nth-of-type(2)');
         let categoryId = null;
         if (categorySelect) {
-            const selectedText = categorySelect.value;
-            // Mapeo: 'Todas' = null, 'Dama' = 1, 'Caballero' = 2, 'Gorra' = 3
             const map = { 'Todas': null, 'Dama': 1, 'Caballero': 2, 'Gorra': 3 };
-            categoryId = map[selectedText] || null;
+            categoryId = map[categorySelect.value] || null;
         }
 
         try {
-            // Construir URL con parámetro
-            let url = `${API_BASE_URL}/api/dashboard/top-productos`; //modificar AQUI para usar API_BASE_URL
-            if (categoryId !== null) {
-                url += `?categoryId=${categoryId}`;
-            }
+            let url = `${window.API_BASE_URL}/api/dashboard/top-productos`;
+            if (categoryId !== null) url += `?categoryId=${categoryId}`;
             
             const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error('Error en la respuesta del servidor');
-            }
-
+            if (!response.ok) throw new Error('Error en la respuesta del servidor');
             const productos = await response.json();
 
             if (productos.length === 0) {
@@ -471,7 +417,6 @@ export default class AdminDashboardView {
                     <td>${p.totalVendido}</td>
                 </tr>
             `).join('');
-
         } catch (error) {
             console.error('Error cargando top productos:', error);
             tableBody.innerHTML = '<tr><td colspan="2" style="color: #ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
@@ -483,12 +428,8 @@ export default class AdminDashboardView {
         if (!tableBody) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/productos/low-stock?threshold=3`); //modificar AQUI para usar API_BASE_URL
-            
-            if (!response.ok) {
-                throw new Error('Error en la respuesta del servidor');
-            }
-
+            const response = await fetch(`${window.API_BASE_URL}/api/productos/low-stock?threshold=3`);
+            if (!response.ok) throw new Error('Error en la respuesta del servidor');
             const productos = await response.json();
             
             if (productos.length === 0) {
@@ -503,12 +444,9 @@ export default class AdminDashboardView {
                     <td>${p.stockActual === 0 ? '<span class="status-out">Agotado</span>' : p.stockActual <= 1 ? '<span class="status-danger">Crítico</span>' : '<span class="status-good">Bueno</span>'}</td>
                 </tr>
             `).join('');
-            
         } catch (error) {
             console.error('Error cargando stock bajo:', error);
-            // 🔥 Actualizamos la UI para que no se quede congelada
             tableBody.innerHTML = '<tr><td colspan="3" style="color: #ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
         }
     }
-
-} // Fin de la clase AdminDashboardView
+}
