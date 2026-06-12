@@ -2,6 +2,7 @@ import LoginView from '/app/views/LoginView.js';
 import LoginController from '/app/controllers/LoginController.js';
 import PosView from '/app/views/PosView.js';
 import AdminDashboardView from '/app/views/AdminDashboardView.js';
+import { API_BASE_URL } from './config.js';
 
 document.addEventListener("DOMContentLoaded", () => {
     window.navegarA('login');
@@ -81,7 +82,7 @@ window.processPayment = async function() {
     };
 
     try {
-        const response = await fetch('http://localhost:8080/api/ventas/procesar', {
+        const response = await fetch(`${API_BASE_URL}/api/ventas/procesar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -156,7 +157,7 @@ function refreshProducts() {
 // -------- CARGAR DATOS DESDE EL BACKEND ---------
 window.loadData = async function() {
     try {
-        const productsResponse = await fetch('http://localhost:8080/api/productos');
+        const productsResponse = await fetch(`${API_BASE_URL}/api/productos`);
         if (!productsResponse.ok) throw new Error('No se pudo cargar productos');
         const productsData = await productsResponse.json();
 
@@ -211,7 +212,6 @@ window.navegarA = async function(vista) {
         contentHTML = AdminDashboardView.renderInventoryContent();
         setTimeout(() => AdminDashboardView.bindInventoryEvents(), 150);
     } else if (vista === 'reports') {
-        // 🔥 1. Asignar el contenido HTML de los reportes
         contentHTML = AdminDashboardView.renderReportsContent();
     } else if (vista === 'pos') {
         contentHTML = PosView.renderContent();
@@ -255,16 +255,12 @@ window.navegarA = async function(vista) {
         }, 150);
     }
 
-    // 🔥 2. Si es la vista de reportes, simular un clic en la pestaña "Más Vendidos" después de que el DOM esté listo
     if (vista === 'reports') {
-        // No hay que hacer clic. Solo llamar a la función. Su propio mecanismo interno
-        // (reportTabRetryCount) se encargará de reintentar hasta que el DOM esté listo.
         setTimeout(async () => {
             await window.showReportTab('top');
         }, 200);
     }
 };
-
 
 let reportTabRetryCount = 0;
 const MAX_RETRIES = 10;
@@ -275,30 +271,25 @@ window.showReportTab = async function(tab) {
     const historyView = document.getElementById('historyView');
     const tabs = document.querySelectorAll('.report-tab');
 
-    // Si algún elemento no existe, esperar, pero con límite
     if (!topProductsView || !stockView || !historyView) {
         reportTabRetryCount++;
         if (reportTabRetryCount >= MAX_RETRIES) {
             console.error('Error crítico: No se pudieron cargar los elementos de reportes después de', MAX_RETRIES, 'intentos.');
-            return; // Salir para evitar el bucle infinito
+            return;
         }
         console.warn(`Elementos de reportes aún no cargados. Reintentando (${reportTabRetryCount}/${MAX_RETRIES})...`);
         setTimeout(() => window.showReportTab(tab), 100);
         return;
     }
 
-    // Reiniciar el contador al cargar exitosamente
     reportTabRetryCount = 0;
 
-    // 1. Ocultar todas las vistas
     topProductsView.style.display = "none";
     stockView.style.display = "none";
     historyView.style.display = "none";
 
-    // 2. Quitar la clase 'active' de todos los botones
     tabs.forEach(b => b.classList.remove("active"));
 
-    // 3. Mostrar la vista y activar el botón
     if (tab === "top") {
         topProductsView.style.display = "block";
         document.getElementById("tab-top").classList.add("active");
@@ -314,7 +305,6 @@ window.showReportTab = async function(tab) {
     }
 };
 
-
 window.exportReport = async function() {
     const activeTab = document.querySelector('.report-tab.active');
     let type = 'top';
@@ -328,7 +318,7 @@ window.exportReport = async function() {
         else if (tabId === 'tab-history') type = 'history';
     }
 
-    let url = `http://localhost:8080/api/reports/export?type=${type}`;
+    let url = `${API_BASE_URL}/api/reports/export?type=${type}`;
     
     if (type === 'top') {
         const categorySelect = document.querySelector('#topProductsView select:nth-of-type(2)');
@@ -342,9 +332,6 @@ window.exportReport = async function() {
     window.location.href = url;
 };
 
-
 window.downloadReceipt = function(id) {
-    window.open('http://localhost:8080/api/ventas/' + id + '/recibo', '_blank');
+    window.open(`${API_BASE_URL}/api/ventas/${id}/recibo`, '_blank');
 };
-
-//futuras funciones para el dashboard y reportes se agregarán aquí

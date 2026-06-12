@@ -1,4 +1,5 @@
 import LoginView from '../views/LoginView.js';
+import { API_BASE_URL } from '../../assets/js/config.js';
 
 export default class LoginController {
 
