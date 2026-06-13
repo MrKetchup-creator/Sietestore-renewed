@@ -72,6 +72,17 @@ public class VentaService {
                 productoRepository.save(productoActualizado);
             }
         }
+        
+        // Después de guardar los detalles, verificar productos con stock 0 y desactivarlos
+        for (DetalleVenta detalle : detalles) {
+            // Volvemos a buscar el producto actualizado (el trigger ya descontó stock)
+            Producto productoActualizado = productoRepository.findById(detalle.getProducto().getIdProducto()).orElse(null);
+            if (productoActualizado != null && productoActualizado.getStockActual() == 0 && productoActualizado.getActivo()) {
+                productoActualizado.setActivo(false);
+                productoRepository.save(productoActualizado);
+                // Opcional: log o mensaje de alerta para el frontend
+            }
+        }
 
         // 5. Retornar la venta guardada (ya tiene el total correcto)
         return nuevaVenta;

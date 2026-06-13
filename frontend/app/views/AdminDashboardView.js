@@ -1,8 +1,10 @@
 import PosView from './PosView.js';
 
 export default class AdminDashboardView {
-    static showInactive = false; // false = solo activos, true = mostrar también inactivos
+    static showInactive = false; // false = mostrar solo activos, true = mostrar solo inactivos
+    static allProducts = [];      // caché de todos los productos (activos e inactivos)
 
+    // ================== DASHBOARD ==================
     static async renderDashboardContent() {
         const stats = await this.loadDashboardStats();
         if (!stats) return `<div class="error">Error cargando datos del dashboard</div>`;
@@ -54,17 +56,28 @@ export default class AdminDashboardView {
         `;
     }
 
+    // ================== INVENTARIO (con filtro activos/inactivos) ==================
     static async renderInventoryContent() {
         try {
-            // Construir URL con el parámetro correcto
-            const url = AdminDashboardView.showInactive 
-                ? `${window.API_BASE_URL}/api/productos?incluirInactivos=true`
-                : `${window.API_BASE_URL}/api/productos`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Error cargando productos');
-            const productos = await response.json();
+            // Cargar todos los productos una sola vez (activos + inactivos)
+            if (AdminDashboardView.allProducts.length === 0) {
+                const response = await fetch(`${window.API_BASE_URL}/api/productos?incluirInactivos=true`);
+                if (!response.ok) throw new Error('Error cargando productos');
+                AdminDashboardView.allProducts = await response.json();
+            }
 
-            PosView.products = productos.map(p => ({
+            // Filtrar según el modo actual
+            let productosFiltrados;
+            if (AdminDashboardView.showInactive) {
+                // Mostrar solo inactivos
+                productosFiltrados = AdminDashboardView.allProducts.filter(p => !p.activo);
+            } else {
+                // Mostrar solo activos
+                productosFiltrados = AdminDashboardView.allProducts.filter(p => p.activo);
+            }
+
+            // Mapear para la tabla (no modificar PosView.products, que se usa en el POS)
+            const productsForTable = productosFiltrados.map(p => ({
                 id: p.idProducto,
                 name: p.nombre,
                 price: p.precioVenta,
@@ -72,9 +85,13 @@ export default class AdminDashboardView {
                 talla: p.talla,
                 color: p.color,
                 stock: p.stockActual,
-                activo: p.activo,
-                image: 'assets/images/placeholder.png'
+                activo: p.activo
             }));
+
+            // Determinar texto del botón toggle
+            const toggleText = AdminDashboardView.showInactive 
+                ? '📘 Mostrar solo activos' 
+                : '📂 Mostrar solo inactivos';
 
             return `
                 <div class="inventory-header">
@@ -83,9 +100,7 @@ export default class AdminDashboardView {
                         <p>Gestión del catálogo de productos y stock.</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="export-btn" id="toggleInactiveBtn">
-                            ${AdminDashboardView.showInactive ? '📘 Mostrar solo activos' : '📂 Mostrar inactivos'}
-                        </button>
+                        <button class="export-btn" id="toggleInactiveBtn">${toggleText}</button>
                         <button class="export-btn" id="btn-new-product">+ Nuevo Producto</button>
                     </div>
                 </div>
@@ -95,7 +110,7 @@ export default class AdminDashboardView {
                             <tr><th>PRODUCTO</th><th>CATEGORÍA</th><th>TALLA / COLOR</th><th>PRECIO</th><th>STOCK</th><th>ACCIONES</th></tr>
                         </thead>
                         <tbody>
-                            ${PosView.products.map(product => `
+                            ${productsForTable.map(product => `
                                 <tr class="${!product.activo ? 'inactive-row' : ''}">
                                     <td>${product.name}</td>
                                     <td><span class="category-badge">${product.category}</span></td>
@@ -123,6 +138,7 @@ export default class AdminDashboardView {
         }
     }
 
+    // ================== REPORTES ==================
     static renderReportsContent() {
         return `
             <div class="reports-header">
@@ -138,20 +154,21 @@ export default class AdminDashboardView {
                 <div id="topProductsView">
                     <div class="filters"><label>Período <select><option>Últimos 7 días</option><option>Últimos 30 días</option></select></label></div>
                     <h2>Top Productos Más Vendidos</h2>
-                    <table class="report-table"><thead><tr><th>Producto</th><th>Unidades Vendidas</th></tr></thead><tbody id="topProductsTable"><tr><td colspan="2">Cargando datos...</td></tr></tbody></table>
+                    <table class="report-table"><thead><tr><th>Producto</th><th>Unidades Vendidas</th></tr></thead><tbody id="topProductsTable"><td><td colspan="2">Cargando datos...</td></tr></tbody></table>
                 </div>
                 <div id="stockView" style="display:none;">
                     <h2>Productos con Stock Bajo</h2>
-                    <table class="report-table"><thead><tr><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead><tbody id="stockBajoTable"><tr><td colspan="3">Cargando datos...</td></tr></tbody></table>
+                    <table class="report-table"><thead><tr><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead><tbody id="stockBajoTable"><td><td colspan="3">Cargando datos...</td></tr></tbody></table>
                 </div>
                 <div id="historyView" style="display:none;">
                     <h2>Historial de Ventas</h2>
-                    <table class="report-table"><thead><tr><th>ID</th><th>Fecha</th><th>Método</th><th>Total</th><th>Recibo</th></tr></thead><tbody id="historialVentasTable"><tr><td colspan="5">Cargando historial...</td></tr></tbody></table>
+                    <table class="report-table"><thead><tr><th>ID</th><th>Fecha</th><th>Método</th><th>Total</th><th>Recibo</th></tr></thead><tbody id="historialVentasTable"><td><td colspan="5">Cargando historial...</td></tr></tbody></table>
                 </div>
             </div>
         `;
     }
 
+    // ================== EVENTOS DEL INVENTARIO ==================
     static bindInventoryEvents() {
         const newProductBtn = document.getElementById("btn-new-product");
         if (newProductBtn) {
@@ -166,15 +183,18 @@ export default class AdminDashboardView {
             };
         }
 
-        // Delegación de eventos (usamos onclick en los botones dinámicos para evitar problemas)
-        document.querySelectorAll('.edit-btn').forEach(btn => {
-            btn.onclick = async (e) => {
+        // Usar el contenedor actual para evitar conflictos con eventos duplicados
+        const container = document.getElementById('dynamic-content');
+        if (!container) return;
+
+        container.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.onclick = async () => {
                 const id = btn.getAttribute('data-id');
                 await this.showEditProductModal(id);
             };
         });
 
-        document.querySelectorAll('.delete-btn').forEach(btn => {
+        container.querySelectorAll('.delete-btn').forEach(btn => {
             btn.onclick = async () => {
                 const id = btn.getAttribute('data-id');
                 if (confirm('¿Desactivar este producto? (Soft delete)')) {
@@ -183,7 +203,7 @@ export default class AdminDashboardView {
             };
         });
 
-        document.querySelectorAll('.reactivate-btn').forEach(btn => {
+        container.querySelectorAll('.reactivate-btn').forEach(btn => {
             btn.onclick = async () => {
                 const id = btn.getAttribute('data-id');
                 if (confirm('¿Reactivar este producto? Volverá a estar disponible en el catálogo.')) {
@@ -194,6 +214,8 @@ export default class AdminDashboardView {
     }
 
     static async refreshInventory() {
+        // Forzar recarga de todos los productos (limpia caché)
+        AdminDashboardView.allProducts = [];
         const content = await this.renderInventoryContent();
         const dynamicContent = document.getElementById('dynamic-content');
         if (dynamicContent) {
@@ -210,6 +232,9 @@ export default class AdminDashboardView {
             });
             if (!response.ok) throw new Error(await response.text());
             alert('Producto desactivado correctamente.');
+            // Actualizar estado en caché local
+            const index = AdminDashboardView.allProducts.findIndex(p => p.idProducto == id);
+            if (index !== -1) AdminDashboardView.allProducts[index].activo = false;
             await this.refreshInventory();
         } catch (error) {
             alert('Error al desactivar: ' + error.message);
@@ -224,12 +249,15 @@ export default class AdminDashboardView {
             });
             if (!response.ok) throw new Error(await response.text());
             alert('Producto reactivado correctamente.');
+            const index = AdminDashboardView.allProducts.findIndex(p => p.idProducto == id);
+            if (index !== -1) AdminDashboardView.allProducts[index].activo = true;
             await this.refreshInventory();
         } catch (error) {
             alert('Error al reactivar: ' + error.message);
         }
     }
 
+    // ================== EDITAR PRODUCTO ==================
     static async showEditProductModal(productId) {
         try {
             const response = await fetch(`${window.API_BASE_URL}/api/productos/${productId}`);
@@ -288,6 +316,8 @@ export default class AdminDashboardView {
                     if (!res.ok) throw new Error(await res.text());
                     alert('Producto actualizado correctamente.');
                     modal.remove();
+                    // Limpiar caché para forzar recarga
+                    AdminDashboardView.allProducts = [];
                     await this.refreshInventory();
                 } catch (error) {
                     alert('Error al actualizar: ' + error.message);
@@ -299,6 +329,7 @@ export default class AdminDashboardView {
         }
     }
 
+    // ================== CREAR NUEVO PRODUCTO ==================
     static showNewProductModal() {
         const existingModal = document.getElementById("new-product-modal");
         if (existingModal) existingModal.remove();
@@ -373,15 +404,17 @@ export default class AdminDashboardView {
             });
             if (!response.ok) throw new Error(await response.text());
             alert("✅ Producto creado exitosamente");
-            modal.remove();
-            await window.loadData();
-            window.navegarA('inventory');
+            document.getElementById("new-product-modal")?.remove();
+            // Limpiar caché y recargar inventario
+            AdminDashboardView.allProducts = [];
+            await this.refreshInventory();
         } catch (error) {
             console.error('Error al crear producto:', error);
             alert("Error de conexión con el servidor.");
         }
     }
 
+    // ================== GRÁFICO DEL DASHBOARD ==================
     static drawSalesChart(labels, data) {
         const canvas = document.getElementById("salesWeekChart");
         if (!canvas) return;
@@ -393,6 +426,7 @@ export default class AdminDashboardView {
         });
     }
 
+    // ================== ESTADÍSTICAS ==================
     static async loadDashboardStats() {
         try {
             const response = await fetch(`${window.API_BASE_URL}/api/stats`);
@@ -428,7 +462,7 @@ export default class AdminDashboardView {
             const ventas = await response.json();
             const tableBody = document.getElementById('ultimasVentasTable');
             if (!tableBody) return;
-            if (ventas.length === 0) { tableBody.innerHTML = '<tr><td colspan="5">No hay ventas registradas</td></tr>'; return; }
+            if (ventas.length === 0) { tableBody.innerHTML = '<td><td colspan="5">No hay ventas registradas</td></tr>'; return; }
             tableBody.innerHTML = ventas.map(v => `<tr><td>#${v.id_venta}</td><td>${new Date(v.fecha_hora).toLocaleDateString()}</td><td>${v.metodo_pago}</td><td>${v.usuario_nombre}</td><td><span class="stock-number">$${v.total_venta.toFixed(2)}</span></td></tr>`).join('');
         } catch (error) {
             console.error('Error cargando ventas:', error);
@@ -442,12 +476,12 @@ export default class AdminDashboardView {
             const ventas = await response.json();
             const tableBody = document.getElementById('historialVentasTable');
             if (!tableBody) return;
-            if (ventas.length === 0) { tableBody.innerHTML = '<tr><td colspan="5">No hay ventas registradas</td></tr>'; return; }
+            if (ventas.length === 0) { tableBody.innerHTML = '<td><td colspan="5">No hay ventas registradas</td></tr>'; return; }
             tableBody.innerHTML = ventas.map(v => `<tr><td>#${v.id_venta}</td><td>${new Date(v.fecha_hora).toLocaleDateString()}</td><td>${v.metodo_pago}</td><td><span class="stock-number">$${v.total_venta.toFixed(2)}</span></td><td><button onclick="window.downloadReceipt(${v.id_venta})" style="background-color:#07142e;color:white;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;">Recibo</button></td></tr>`).join('');
         } catch (error) {
             console.error('Error cargando historial de ventas:', error);
             const tableBody = document.getElementById('historialVentasTable');
-            if (tableBody) tableBody.innerHTML = '<tr><td colspan="5">Error al cargar el historial</td></tr>';
+            if (tableBody) tableBody.innerHTML = '<td><td colspan="5">Error al cargar el historial</td></tr>';
         }
     }
 
@@ -466,11 +500,11 @@ export default class AdminDashboardView {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Error en la respuesta del servidor');
             const productos = await response.json();
-            if (productos.length === 0) { tableBody.innerHTML = '<tr><td colspan="2">No hay ventas registradas.</td></tr>'; return; }
+            if (productos.length === 0) { tableBody.innerHTML = '<td><td colspan="2">No hay ventas registradas.</td></tr>'; return; }
             tableBody.innerHTML = productos.map(p => `<tr><td>${p.nombre}</td><td>${p.totalVendido}</td></tr>`).join('');
         } catch (error) {
             console.error('Error cargando top productos:', error);
-            tableBody.innerHTML = '<tr><td colspan="2" style="color:#ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
+            tableBody.innerHTML = '<td><td colspan="2" style="color:#ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
         }
     }
 
@@ -481,11 +515,11 @@ export default class AdminDashboardView {
             const response = await fetch(`${window.API_BASE_URL}/api/productos/low-stock?threshold=3`);
             if (!response.ok) throw new Error('Error en la respuesta del servidor');
             const productos = await response.json();
-            if (productos.length === 0) { tableBody.innerHTML = '<tr><td colspan="3">No hay productos con stock bajo.</td></tr>'; return; }
+            if (productos.length === 0) { tableBody.innerHTML = '<td><td colspan="3">No hay productos con stock bajo.</td></tr>'; return; }
             tableBody.innerHTML = productos.map(p => `<tr><td>${p.nombre}</td><td>${p.stockActual}</td><td>${p.stockActual === 0 ? '<span class="status-out">Agotado</span>' : p.stockActual <= 1 ? '<span class="status-danger">Crítico</span>' : '<span class="status-good">Bueno</span>'}</td></tr>`).join('');
         } catch (error) {
             console.error('Error cargando stock bajo:', error);
-            tableBody.innerHTML = '<tr><td colspan="3" style="color:#ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
+            tableBody.innerHTML = '<td><td colspan="3" style="color:#ff365f;">⚠ Error al cargar los datos. Revisa la consola.</td></tr>';
         }
     }
 }
