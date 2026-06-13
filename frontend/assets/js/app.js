@@ -208,7 +208,7 @@ window.navegarA = async function(vista) {
         contentHTML = await AdminDashboardView.renderDashboardContent();
     } else if (vista === 'inventory') {
         AdminDashboardView.removeNewProductModal();
-        contentHTML = AdminDashboardView.renderInventoryContent();
+        contentHTML = await AdminDashboardView.renderInventoryContent();
         setTimeout(() => AdminDashboardView.bindInventoryEvents(), 150);
     } else if (vista === 'reports') {
         contentHTML = AdminDashboardView.renderReportsContent();

@@ -63,6 +63,15 @@ public class VentaService {
             detalle.setPrecioUnitario(precioUnitario);
             detalleVentaRepository.save(detalle);
         }
+        
+        // Después de guardar todos los detalles, verificar productos con stock 0 y desactivarlos
+        for (DetalleVenta detalle : detalles) {
+            Producto productoActualizado = productoRepository.findById(detalle.getProducto().getIdProducto()).orElse(null);
+            if (productoActualizado != null && productoActualizado.getStockActual() == 0 && productoActualizado.getActivo()) {
+                productoActualizado.setActivo(false);
+                productoRepository.save(productoActualizado);
+            }
+        }
 
         // 5. Retornar la venta guardada (ya tiene el total correcto)
         return nuevaVenta;
