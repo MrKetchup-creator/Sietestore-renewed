@@ -100,12 +100,22 @@ window.processPayment = async function() {
         const ventaCreada = await response.json();
         alert(`✅ Venta #${ventaCreada.idVenta} procesada con éxito.\nMétodo de pago: ${window.selectedPayment}`);
 
+        // Dentro de window.processPayment, después de alert(ventaCreada)
         PosView.cart = [];
         updateCart();
 
-        // 🔥 Recargar productos activos desde el backend (actualiza stocks y desactivaciones)
+        // 🔥 Recargar productos activos desde el backend (sin caché)
         await window.loadData();
-        refreshProducts(); // actualiza la grilla de productos en el POS
+        
+        
+        // 🔥 Forzar una recreación completa del contenido del POS (no solo la grilla)
+        // para asegurar que se apliquen los filtros y se muestren solo los activos.
+        const posContent = PosView.renderContent();
+        document.getElementById("productsGrid").innerHTML = PosView.renderProducts(PosView.products);
+        document.getElementById("cartPanel").innerHTML = PosView.renderCart();
+
+        // También actualizar la grilla por si acaso
+        refreshProducts();
 
         const isDashboardVisible = document.querySelector('.stat-card') !== null;
         if (isDashboardVisible && window.currentUser?.role === "admin") {
@@ -165,13 +175,15 @@ function refreshProducts() {
 // -------- CARGAR DATOS DESDE EL BACKEND (SOLO PRODUCTOS CON STOCK > 0) ---------
 window.loadData = async function() {
     try {
-        const productsResponse = await fetch(`${window.API_BASE_URL}/api/productos`);
+        // 🔥 PARÁMETRO ANTI-CACHÉ PARA OBTENER DATOS FRESCOS SIEMPRE
+        const url = `${window.API_BASE_URL}/api/productos?_=${Date.now()}`;
+        const productsResponse = await fetch(url);
         if (!productsResponse.ok) throw new Error('No se pudo cargar productos');
         const productsData = await productsResponse.json();
 
-        // 🔥 FILTRAR: solo productos con stock actual > 0
+        // 🔥 FILTRAR: solo productos con stockActual > 0 Y activo = true (por si acaso)
         PosView.products = productsData
-            .filter(p => p.stockActual > 0)
+            .filter(p => p.stockActual > 0 && p.activo === true)
             .map(p => ({
                 id: p.idProducto,
                 name: p.nombre,
@@ -185,9 +197,10 @@ window.loadData = async function() {
                 image: 'assets/images/placeholder.png'
             }));
 
-        console.log('Productos cargados (con stock > 0):', PosView.products.length);
+        console.log('Productos cargados (con stock > 0 y activos):', PosView.products.length);
     } catch (error) {
         console.error('Error cargando datos:', error);
+        PosView.products = []; // evitar mostrar datos viejos
     }
 };
 
@@ -225,9 +238,10 @@ window.navegarA = async function(vista) {
     } else if (vista === 'reports') {
         contentHTML = AdminDashboardView.renderReportsContent();
     } else if (vista === 'pos') {
-        // 🔥 Recargar productos activos antes de mostrar el POS
         await window.loadData();
         contentHTML = PosView.renderContent();
+        // después de que el DOM se actualice, forzamos un refresh adicional
+        setTimeout(() => refreshProducts(), 50);
     }
 
     app.innerHTML = `
