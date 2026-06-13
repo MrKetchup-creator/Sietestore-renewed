@@ -11,7 +11,19 @@ export default class LoginController {
     }
 
     static bindEvents() {
+        // 🔥 RESETEAR EL ROL A ADMINISTRADOR CADA VEZ QUE SE CARGA LA PANTALLA DE LOGIN
+        this.selectedRole = "admin";
+        
         const roleButtons = document.querySelectorAll(".role-btn");
+        
+        // Asegurar que el botón de administrador tenga la clase 'active' (ya viene en el HTML, pero por si acaso)
+        roleButtons.forEach(btn => {
+            if (btn.dataset.role === "admin") {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+        });
 
         roleButtons.forEach(btn => {
             btn.addEventListener("click", () => {
@@ -47,17 +59,14 @@ export default class LoginController {
 
             const user = await response.json();
 
-            // Validar que el rol seleccionado coincida con el rol del usuario
             if (user.role.toLowerCase() !== this.selectedRole) {
                 alert(`Este usuario es ${user.roleLabel}, no puede acceder como ${this.selectedRole === 'admin' ? 'Administrador' : 'Empleado'}`);
                 return;
             }
 
-            // Guardar usuario actual
             window.currentUser = user;
-            await window.loadData(); // Cargar datos necesarios para la aplicación
+            await window.loadData();
 
-            // Redirigir según rol
             if (user.role.toLowerCase() === 'admin') {
                 window.navegarA('dashboard');
             } else {
@@ -65,10 +74,8 @@ export default class LoginController {
             }
 
         } catch (error) {
-            if (user.role.toLowerCase() !== this.selectedRole) {
-                alert(`El usuario ${user.name} tiene el rol "${user.roleLabel}", pero seleccionaste "${this.selectedRole === 'admin' ? 'Administrador' : 'Empleado'}".\nPor favor, selecciona el perfil correcto.`);
-                return;
-            }
+            console.error('Error en el login:', error);
+            alert("Error de conexión con el servidor. Asegúrate de que el backend esté corriendo.");
         }
     }
 }

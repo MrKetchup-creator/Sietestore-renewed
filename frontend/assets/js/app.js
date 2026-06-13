@@ -29,7 +29,10 @@ window.filterProducts = function(category) {
 
 window.addToCart = function(id) {
     const product = PosView.products.find(p => p.id === id);
-    if (product.stock <= 0) { alert("Producto agotado"); return; }
+    if (!product || product.stock <= 0) { 
+        alert("Producto agotado o no disponible"); 
+        return; 
+    }
     const existing = PosView.cart.find(p => p.id === id);
     if (existing) existing.qty++;
     else PosView.cart.push({ ...product, qty: 1 });
@@ -41,6 +44,7 @@ window.addToCart = function(id) {
 window.changeQty = function(id, change) {
     const item = PosView.cart.find(p => p.id === id);
     const product = PosView.products.find(p => p.id === id);
+    if (!product) return;
     if (change > 0) {
         if (product.stock <= 0) { alert("No hay más stock disponible"); return; }
         item.qty++;
@@ -98,7 +102,10 @@ window.processPayment = async function() {
 
         PosView.cart = [];
         updateCart();
-        refreshProducts();
+
+        // 🔥 Recargar productos activos desde el backend (actualiza stocks y desactivaciones)
+        await window.loadData();
+        refreshProducts(); // actualiza la grilla de productos en el POS
 
         const isDashboardVisible = document.querySelector('.stat-card') !== null;
         if (isDashboardVisible && window.currentUser?.role === "admin") {
@@ -140,7 +147,9 @@ window.searchProducts = function(value) {
     document.getElementById("productsGrid").innerHTML = PosView.renderProducts(filtered);
 };
 
-function updateCart() { document.getElementById("cartPanel").innerHTML = PosView.renderCart(); }
+function updateCart() { 
+    document.getElementById("cartPanel").innerHTML = PosView.renderCart(); 
+}
 
 function refreshProducts() {
     const category = window.currentCategory;
@@ -153,27 +162,30 @@ function refreshProducts() {
     document.getElementById("productsGrid").innerHTML = PosView.renderProducts(products);
 }
 
-// -------- CARGAR DATOS DESDE EL BACKEND ---------
+// -------- CARGAR DATOS DESDE EL BACKEND (SOLO PRODUCTOS CON STOCK > 0) ---------
 window.loadData = async function() {
     try {
         const productsResponse = await fetch(`${window.API_BASE_URL}/api/productos`);
         if (!productsResponse.ok) throw new Error('No se pudo cargar productos');
         const productsData = await productsResponse.json();
 
-        PosView.products = productsData.map(p => ({
-            id: p.idProducto,
-            name: p.nombre,
-            price: p.precioVenta,
-            category: p.idCategoria === 1 ? 'dama' : 
-                      p.idCategoria === 2 ? 'caballero' : 
-                      p.idCategoria === 3 ? 'gorra' : 'dama',
-            talla: p.talla,
-            color: p.color,
-            stock: p.stockActual,
-            image: 'assets/images/placeholder.png'
-        }));
+        // 🔥 FILTRAR: solo productos con stock actual > 0
+        PosView.products = productsData
+            .filter(p => p.stockActual > 0)
+            .map(p => ({
+                id: p.idProducto,
+                name: p.nombre,
+                price: p.precioVenta,
+                category: p.idCategoria === 1 ? 'dama' : 
+                          p.idCategoria === 2 ? 'caballero' : 
+                          p.idCategoria === 3 ? 'gorra' : 'dama',
+                talla: p.talla,
+                color: p.color,
+                stock: p.stockActual,
+                image: 'assets/images/placeholder.png'
+            }));
 
-        console.log('Productos cargados:', PosView.products.length);
+        console.log('Productos cargados (con stock > 0):', PosView.products.length);
     } catch (error) {
         console.error('Error cargando datos:', error);
     }
@@ -213,6 +225,8 @@ window.navegarA = async function(vista) {
     } else if (vista === 'reports') {
         contentHTML = AdminDashboardView.renderReportsContent();
     } else if (vista === 'pos') {
+        // 🔥 Recargar productos activos antes de mostrar el POS
+        await window.loadData();
         contentHTML = PosView.renderContent();
     }
 
